@@ -15,4 +15,7 @@
 *.~h
 *.bak
 *.map
+*.idb
+*.ilk
 .vs/
+Debug64/
