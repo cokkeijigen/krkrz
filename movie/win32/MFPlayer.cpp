@@ -25,10 +25,10 @@
 #include "DShowException.h"
 
 #pragma comment( lib, "propsys.lib" )
-//#pragma comment( lib, "Mfplat.lib" )
-#pragma comment( lib, "Mfplat_vista.lib" )
-//#pragma comment( lib, "Mf.lib" )
-#pragma comment( lib, "Mf_vista.lib" )
+#pragma comment( lib, "Mfplat.lib" )
+//#pragma comment( lib, "Mfplat_vista.lib" )
+#pragma comment( lib, "Mf.lib" )
+//#pragma comment( lib, "Mf_vista.lib" )
 #pragma comment( lib, "Mfuuid.lib" )
 //#pragma comment( lib, "d3d9.lib" )
 //#pragma comment( lib, "dxva2.lib" )
