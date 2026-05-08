@@ -11,7 +11,7 @@
 #define _USE_MATH_DEFINES
 #include "tjsCommHead.h"
 
-#include <math.h>
+#include <cmath>
 
 #include "tjsArray.h"
 #include "LayerIntf.h"
