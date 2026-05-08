@@ -18,4 +18,5 @@
 *.idb
 *.ilk
 .vs/
+.test/
 Debug64/
