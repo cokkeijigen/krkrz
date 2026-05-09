@@ -4,8 +4,8 @@
 #include "SysInitIntf.h"
 
 #include <windows.h>
+#include <sdkddkver.h>
 #include <assert.h>
-#include <math.h>
 #include <cmath>
 #include <propvarutil.h>
 #include <string>
@@ -24,15 +24,21 @@
 #include "MFPlayer.h"
 #include "DShowException.h"
 
-#pragma comment( lib, "propsys.lib" )
-#pragma comment( lib, "Mfplat.lib" )
-//#pragma comment( lib, "Mfplat_vista.lib" )
-#pragma comment( lib, "Mf.lib" )
-//#pragma comment( lib, "Mf_vista.lib" )
-#pragma comment( lib, "Mfuuid.lib" )
-//#pragma comment( lib, "d3d9.lib" )
-//#pragma comment( lib, "dxva2.lib" )
-//#pragma comment( lib, "evr.lib" )
+#if defined(_WIN32_WINNT) && (_WIN32_WINNT == 0x0600)
+	//#pragma comment(lib, "evr_vista.lib")
+	#pragma comment(lib, "Mfplat_vista.lib")
+	#pragma comment(lib, "Mf_vista.lib")
+#else
+    //#pragma comment(lib, "evr.lib")
+	#pragma comment(lib, "Mfplat.lib")
+	#pragma comment(lib, "Mf.lib")
+#endif
+
+#pragma comment(lib, "Mfuuid.lib")
+#pragma comment(lib, "propsys.lib")
+//#pragma comment(lib, "d3d9.lib")
+//#pragma comment(lib, "dxva2.lib")
+
 
 //----------------------------------------------------------------------------
 //! @brief	  	VideoOverlay MediaFoundationを取得する
