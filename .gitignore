@@ -17,6 +17,9 @@
 *.map
 *.idb
 *.ilk
+out/
+.build/
 .vs/
+.vscode/
 .test/
 Debug64/
