@@ -233,14 +233,15 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/visual/tvpgl.c"
 )
 
-set(ASM_SOURCES
-	"${SOURCE_ROOT}/visual/IA32/tlg6_chroma.nas"
-	"${SOURCE_ROOT}/visual/IA32/tlg6_golomb.nas"	
-)
-
-set_source_files_properties(${ASM_SOURCES} 
-	PROPERTIES LANGUAGE ASM_NASM
-)
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+	set(ASM_SOURCES
+		"${SOURCE_ROOT}/visual/IA32/tlg6_chroma.nas"
+		"${SOURCE_ROOT}/visual/IA32/tlg6_golomb.nas"	
+	)
+	set_source_files_properties(${ASM_SOURCES} 
+		PROPERTIES LANGUAGE ASM_NASM
+	)
+endif()
 
 add_executable(KRKRZ WIN32 
 	"${SOURCE_ROOT}/vcproj/tvpwin32.rc"
