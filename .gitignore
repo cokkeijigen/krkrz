@@ -23,3 +23,4 @@ out/
 .vscode/
 .test/
 Debug64/
+Release64/
