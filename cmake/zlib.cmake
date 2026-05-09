@@ -39,6 +39,9 @@ if(MSVC)
 			"${SOURCE_ROOT}/external/zlib/contrib/masmx64/gvmat64.asm"
 			"${SOURCE_ROOT}/external/zlib/contrib/masmx64/inffasx64.asm"
 		)
+        list(APPEND ZLIB_C_SOURCES 
+            "${SOURCE_ROOT}/external/zlib/contrib/masmx64/inffas8664.c"
+        )
     endif()
 endif()
 

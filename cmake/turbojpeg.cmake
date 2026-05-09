@@ -142,3 +142,9 @@ target_include_directories(turbojpeg
 target_compile_definitions(turbojpeg 
 	PRIVATE "_CRT_SECURE_NO_WARNINGS"
 )
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	target_compile_definitions(turbojpeg 
+		PRIVATE "WIN64" "__x86_64__"
+	)
+endif()
