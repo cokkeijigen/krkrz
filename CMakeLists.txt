@@ -20,6 +20,29 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/GL>"
 		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/GS->"
     )
+
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	set(CLANG_ONLY_FLAGS
+		"-fms-extensions"
+		"-fms-compatibility"
+		"-Waddress-of-temporary"
+		"-Wno-invalid-token-paste"
+		"-msse4.1" 
+		"-mavx" 
+		"-mavx2"
+		"-Wno-c++11-narrowing"
+		"-Wno-narrowing"
+		"-fno-operator-names"
+		"-fno-sanitize=all"
+		"-fno-stack-protector"
+		"-Wno-undefined-bool-conversion"
+		"-fno-delete-null-pointer-checks"
+	)
+	if(CLANG_ONLY_FLAGS)
+		foreach(flag ${CLANG_ONLY_FLAGS})
+			add_compile_options("$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:${flag}>")
+		endforeach()
+	endif()
 endif()
 
 set(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}")
@@ -286,6 +309,7 @@ target_include_directories(KRKRZ PRIVATE
 target_compile_definitions(KRKRZ PRIVATE
 	
     "__WIN32__"
+	"__CODEGUARD__"
 	"_UNICODE" "UNICODE" 
 	"_CRT_SECURE_NO_WARNING"
 
