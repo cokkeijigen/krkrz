@@ -16,7 +16,13 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #include <intrin.h>
+
+#if defined(__clang__)
+#define __xgetbv _xgetbv
+#else
 extern "C" unsigned __int64 __xgetbv(int);
+#endif
+
 static bool __os_has_avx_support() {
 	// Check if the OS will save the YMM registers
 	unsigned long long xcrFeatureMask = __xgetbv(_XCR_XFEATURE_ENABLED_MASK);
