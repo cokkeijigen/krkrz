@@ -274,23 +274,12 @@ struct ssse3_do_gray_scale {
 	__m128i lum_;
 	inline ssse3_do_gray_scale() : zero_( _mm_setzero_si128() ), alphamask_(_mm_set1_epi32(0xff000000)), lum_(_mm_set1_epi32(0x0036B713)) {
 		lum_ = _mm_unpacklo_epi8( lum_, zero_ );
-		
-		mask.m128i_u8[0] = 0x01;
-		mask.m128i_u8[1] = 0x01;
-		mask.m128i_u8[2] = 0x01;
-		mask.m128i_u8[3] = 0x81;
-		mask.m128i_u8[4] = 0x03;
-		mask.m128i_u8[5] = 0x03;
-		mask.m128i_u8[6] = 0x03;
-		mask.m128i_u8[7] = 0x83;
-		mask.m128i_u8[8] = 0x05;
-		mask.m128i_u8[9] = 0x05;
-		mask.m128i_u8[10] = 0x05;
-		mask.m128i_u8[11] = 0x85;
-		mask.m128i_u8[12] = 0x07;
-		mask.m128i_u8[13] = 0x07;
-		mask.m128i_u8[14] = 0x07;
-		mask.m128i_u8[15] = 0x87;
+
+		mask = _mm_setr_epi8(
+			0x01, 0x01, 0x01, 0x81, 0x03, 0x03, 0x03, 0x83,
+			0x05, 0x05, 0x05, 0x85, 0x07, 0x07, 0x07, 0x87
+		);
+
 		// (0x1x2x3x0x1x2x3x)
 		//  0123456789abcdef
 	}
@@ -824,7 +813,7 @@ static inline void stretch_blend_inter_func_sse2(tjs_uint32 *dest, tjs_int len, 
 		count = count > len ? len : count;
 		tjs_uint32* limit = dest + count;
 		while( dest < limit ) {
-			tjs_uint32 s = inter( src1, src2, mstart.m128i_i32[0] );
+			tjs_uint32 s = inter(src1, src2, simd_extract_i32(mstart, 0));
 			*dest = func( *dest, s  );
 			mstart = _mm_add_epi32( mstart, mstep1 );
 			dest++;
@@ -842,7 +831,7 @@ static inline void stretch_blend_inter_func_sse2(tjs_uint32 *dest, tjs_int len, 
 	}
 	limit += (len-rem);
 	while( dest < limit ) {
-		tjs_uint32 s = inter( src1, src2, mstart.m128i_i32[0] );
+		tjs_uint32 s = inter(src1, src2, simd_extract_i32(mstart, 0));
 		*dest = func( *dest, s  );
 		mstart = _mm_add_epi32( mstart, mstep1 );
 		dest++;
