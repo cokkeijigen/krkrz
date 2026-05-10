@@ -469,7 +469,7 @@ void tTVPApplication::CloseConsole() {
 
 void tTVPApplication::PrintConsole( const wchar_t* mes, unsigned long len, bool iserror ) {
 	HANDLE hStdOutput = ::GetStdHandle(iserror ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
-	if (hStdOutput > 0) {
+	if (hStdOutput != INVALID_HANDLE_VALUE) {
 		DWORD mode;
 		if (GetConsoleMode(hStdOutput, &mode)) {
 			// 実コンソール
