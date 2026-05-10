@@ -1077,8 +1077,8 @@ void tTJSArrayNI::Assign(iTJSDispatch2 * dsp)
 		Items.clear();
 		tDictionaryEnumCallback callback;
 		callback.Items = &Items;
-
-		dsp->EnumMembers(TJS_IGNOREPROP, &tTJSVariantClosure(&callback, NULL), dsp);
+		tTJSVariantClosure variantClosure(&callback, NULL);
+		dsp->EnumMembers(TJS_IGNOREPROP, &variantClosure, dsp);
 
 	}
 }
