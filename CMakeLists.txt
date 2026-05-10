@@ -25,11 +25,10 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	set(CLANG_ONLY_FLAGS
 		"-fms-extensions"
 		"-fms-compatibility"
+		"-Wno-microsoft-template"
+		"-Wno-deprecated-register"
 		"-Waddress-of-temporary"
 		"-Wno-invalid-token-paste"
-		"-msse4.1" 
-		"-mavx" 
-		"-mavx2"
 		"-Wno-c++11-narrowing"
 		"-Wno-narrowing"
 		"-fno-operator-names"
@@ -37,12 +36,46 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 		"-fno-stack-protector"
 		"-Wno-undefined-bool-conversion"
 		"-fno-delete-null-pointer-checks"
+		"-Wno-microsoft-extra-qualification"
+		"-Wno-shift-negative-value"
+		"-Wno-microsoft-enum-forward-reference"
+		"-Wno-delete-abstract-non-virtual-dtor"
+		"-Wno-implicit-exception-spec-mismatch"
+		"-Wno-non-pod-varargs"
+		"-Wno-unused-value"
+		"-Wno-mismatched-new-delete"
+		"-Wno-microsoft-cast"
+		"-Wno-deprecated-declarations"
+		"-Wno-nonportable-include-path"
+		"-Wno-tautological-constant-out-of-range-compare"
+		"-Wno-inconsistent-missing-override"
+		"-Wno-error=deprecated-declarations"
+		"-Wno-microsoft-exception-spec"
+		"-Wno-explicit-specialization-storage-class"
+		"-Wno-error=non-pod-varargs"
+		"-Wno-pointer-bool-conversion"
+		"-Wno-parentheses"
+		"-Wno-null-dereference"
+		"-Wno-deprecated-non-prototype"
+		"-Wno-writable-strings"
+		"-Wno-extra-tokens"
+		"-Wno-switch"
+		"-Wno-exceptions"
+		"-Wno-missing-exception-spec"
+		"-msse4.1" 
+		"-mavx" 
+		"-mavx2"
 	)
+
 	if(CLANG_ONLY_FLAGS)
 		foreach(flag ${CLANG_ONLY_FLAGS})
-			add_compile_options("$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:${flag}>")
+			add_compile_options(
+				"$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:${flag}>"
+			)
 		endforeach()
 	endif()
+
+	add_link_options("-Wl,/SAFESEH:NO")
 endif()
 
 set(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}")
