@@ -159,8 +159,10 @@ void TVPAdjustGamma_a_sse2_c(tjs_uint32 *dest, tjs_int len, tTVPGLGammaAdjustTem
 #endif
 
 #else
-				__m128i mrcpi0 = _mm_set_epi32(TVPRecipTable256_16[ma0.m128i_u32[3]],TVPRecipTable256_16[ma0.m128i_u32[2]],
-						TVPRecipTable256_16[ma0.m128i_u32[1]],TVPRecipTable256_16[ma0.m128i_u32[0]]);
+				__m128i mrcpi0 = _mm_set_epi32(
+					TVPRecipTable256_16[simd_extract_u32(ma0, 3)], TVPRecipTable256_16[simd_extract_u32(ma0, 2)],
+					TVPRecipTable256_16[simd_extract_u32(ma0, 1)], TVPRecipTable256_16[simd_extract_u32(ma0, 0)]);
+
 				__m128i mask;
 				mrcpi0 = _mm_packs_epi32( mrcpi0, mrcpi0 );		// 0 1 2 3 0 1 2 3
 #endif
@@ -399,6 +401,10 @@ void TVPInitGammaAdjustTempData_sse2_c( tTVPGLGammaAdjustTempData *temp, const t
 		*dstb = _mm_cvtsi128_si32(n);
 		dstb++;
 	}
+	// 輝度値 0 の結果が -inf となってしまい、floor が無視されるのを回避
+	temp->R[0] = data->RFloor;
+	temp->G[0] = data->GFloor;
+	temp->B[0] = data->BFloor;
 }
 
 

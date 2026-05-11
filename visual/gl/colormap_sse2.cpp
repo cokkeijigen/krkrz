@@ -193,10 +193,10 @@ struct sse2_apply_color_map65_d_functor {
 		opa = _mm_slli_epi32( opa, 8 );			// <<= 8
 		da = _mm_or_si128( da, opa );
 		__m128i ma1 = _mm_set_epi32(
-			TVPOpacityOnOpacityTable65[da.m128i_u32[3]],
-			TVPOpacityOnOpacityTable65[da.m128i_u32[2]],
-			TVPOpacityOnOpacityTable65[da.m128i_u32[1]],
-			TVPOpacityOnOpacityTable65[da.m128i_u32[0]]);
+			TVPOpacityOnOpacityTable65[simd_extract_u32(da, 3)],
+			TVPOpacityOnOpacityTable65[simd_extract_u32(da, 2)],
+			TVPOpacityOnOpacityTable65[simd_extract_u32(da, 1)],
+			TVPOpacityOnOpacityTable65[simd_extract_u32(da, 0)]);
 
 		ma1 = _mm_packs_epi32( ma1, ma1 );		// 0 1 2 3 0 1 2 3
 		ma1 = _mm_unpacklo_epi16( ma1, ma1 );	// 0 0 1 1 2 2 3 3
@@ -374,23 +374,23 @@ static inline void apply_color_map_func_sse2( tjs_uint32 *dest, const tjs_uint8 
 
 void TVPApplyColorMap65_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color) {
 	sse2_apply_color_map65_functor func(color);
-	apply_color_map_branch_func_sse2<sse2_apply_color_map65_functor,0x40404040>( dest, src, len , func );
+	apply_color_map_branch_func_sse2<sse2_apply_color_map65_functor, (int)0x40404040>( dest, src, len , func );
 }
 void TVPApplyColorMap_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color) {
 	sse2_apply_color_map_functor func(color);
-	apply_color_map_branch_func_sse2<sse2_apply_color_map_functor,0xffffffff>( dest, src, len , func );
+	apply_color_map_branch_func_sse2<sse2_apply_color_map_functor, (int)0xffffffff>( dest, src, len , func );
 }
 void TVPApplyColorMap65_d_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color) {
 	sse2_apply_color_map65_d_functor func( color );
-	apply_color_map_branch_func_sse2<sse2_apply_color_map65_d_functor,0x40404040>( dest, src, len , func );
+	apply_color_map_branch_func_sse2<sse2_apply_color_map65_d_functor, (int)0x40404040>( dest, src, len , func );
 }
 void TVPApplyColorMap65_a_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color) {
 	sse2_apply_color_map65_a_functor func( color );
-	apply_color_map_branch_func_sse2<sse2_apply_color_map65_a_functor,0x40404040>( dest, src, len , func );
+	apply_color_map_branch_func_sse2<sse2_apply_color_map65_a_functor, (int)0x40404040>( dest, src, len , func );
 }
 void TVPApplyColorMap_a_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color) {
 	sse2_apply_color_map_a_functor func( color );
-	apply_color_map_branch_func_sse2<sse2_apply_color_map_a_functor,0xffffffff>( dest, src, len , func );
+	apply_color_map_branch_func_sse2<sse2_apply_color_map_a_functor, (int)0xffffffff>( dest, src, len , func );
 }
 void TVPApplyColorMap65_o_sse2_c(tjs_uint32 *dest, const tjs_uint8 *src, tjs_int len, tjs_uint32 color, tjs_int opa) {
 	sse2_apply_color_map65_o_functor func(color,opa);
