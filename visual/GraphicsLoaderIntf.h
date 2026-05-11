@@ -16,7 +16,7 @@
 #include "drawable.h"
 
 class tTVPBaseBitmap;
-class TJS::tTJSBinaryStream;
+namespace TJS { class tTJSBinaryStream; }
 
 
 /*[*/
