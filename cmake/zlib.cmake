@@ -64,11 +64,12 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         set(ZLIB_ASM_SOURCES 
             "${SOURCE_ROOT}/external/zlib/contrib/asm686/match.S"
         )
-         set(ASM_COMPILE_FLAGS "${ASM_COMPILE_FLAGS} -m32")
+        set(ASM_COMPILE_FLAGS "${ASM_COMPILE_FLAGS} -m32")
     elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(ZLIB_ASM_SOURCES 
             "${SOURCE_ROOT}/external/zlib/contrib/amd64/amd64-match.S"
         )
+        set(ASM_COMPILE_FLAGS "${ASM_COMPILE_FLAGS} -DNO_UNDERLINE")
     endif()
 
     if(ZLIB_ASM_SOURCES)
