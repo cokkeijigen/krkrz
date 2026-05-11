@@ -25,13 +25,13 @@
 #include "DShowException.h"
 
 #if defined(_WIN32_WINNT) && (_WIN32_WINNT == 0x0600)
-//#pragma comment(lib, "evr_vista.lib")
-#pragma comment(lib, "Mfplat_vista.lib")
-#pragma comment(lib, "Mf_vista.lib")
+	//#pragma comment(lib, "evr_vista.lib")
+	#pragma comment(lib, "Mfplat_vista.lib")
+	#pragma comment(lib, "Mf_vista.lib")
 #else
-//#pragma comment(lib, "evr.lib")
-#pragma comment(lib, "Mfplat.lib")
-#pragma comment(lib, "Mf.lib")
+    //#pragma comment(lib, "evr.lib")
+	#pragma comment(lib, "Mfplat.lib")
+	#pragma comment(lib, "Mf.lib")
 #endif
 
 #pragma comment(lib, "Mfuuid.lib")
@@ -539,7 +539,7 @@ void __stdcall tTVPMFPlayer::ReleaseAll()
 }
 //----------------------------------------------------------------------------
 void tTVPMFPlayer::NotifyError( HRESULT hr ) {
-	TVPThrowExceptionMessage(L"MF Operation Error.",hr);
+	TVPThrowExceptionMessage(L"MF Operation Error.", (ttstr&)(hr));
 }
 void tTVPMFPlayer::OnMediaItemCleared() {
 }
