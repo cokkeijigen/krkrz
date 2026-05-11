@@ -101,6 +101,28 @@
         "strategy": "external"
       },
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "windows-clang-x64-release",
+      "displayName": "Windows Clang x64 Release",
+      "description": "Targeting Windows x64 with Clang (Release)",
+      "inherits": "base-windows-clang",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "windows-clang-x64-debug",
+      "displayName": "Windows Clang x64 Debug",
+      "description": "Targeting Windows x64 with Clang (Debug)",
+      "inherits": "base-windows-clang",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     }
   ]
 }
