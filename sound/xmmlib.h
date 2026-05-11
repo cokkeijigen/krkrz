@@ -85,7 +85,7 @@ typedef union {
 	__m64			pi64;
 } __m64x;
 
-#if		defined(_MSC_VER)
+#if		defined(_MSC_VER) && !defined(__clang__)
 typedef union __declspec(intrin_type) __declspec(align(16)) __m128x{
 	unsigned long	si32[4];
 	float			sf[4];
@@ -97,7 +97,7 @@ typedef union __declspec(intrin_type) __declspec(align(16)) __m128x{
 #endif
 } __m128x;
 
-#elif	defined(__GNUC__)
+#elif	defined(__GNUC__) || defined(__clang__)
 typedef union {
 	unsigned long	si32[4];
 	float			sf[4];
