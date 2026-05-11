@@ -33,11 +33,12 @@ set(BASECLASSES_SOURCES
 	"${SOURCE_ROOT}/external/baseclasses/wxutil.cpp"
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+set(ORIGINAL_WXDEBUG "${SOURCE_ROOT}/external/baseclasses/wxdebug.cpp")
+set(FIXED_WXDEBUG    "${CMAKE_BINARY_DIR}/baseclasses/wxdebug.cpp")
 
-	set(ORIGINAL_WXDEBUG "${SOURCE_ROOT}/external/baseclasses/wxdebug.cpp")
-	set(FIXED_WXDEBUG    "${CMAKE_BINARY_DIR}/baseclasses/wxdebug.cpp")
-	
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+	list(APPEND BASECLASSES_SOURCES ${ORIGINAL_WXDEBUG})
+else()
 	if(EXISTS ${ORIGINAL_WXDEBUG})
 		file(READ ${ORIGINAL_WXDEBUG} FILE_CONTENTS)
 		string(
