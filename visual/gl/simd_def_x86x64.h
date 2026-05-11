@@ -4,7 +4,7 @@
 
 
 #include <intrin.h>
-
+#include <simd_utils.h>
 #ifdef _MSC_VER
 #ifndef _mm_srli_pi64
 #define _mm_srli_pi64 _mm_srli_si64
@@ -14,12 +14,16 @@
 #endif
 #pragma warning(push)
 #pragma warning(disable : 4799)	// ignore _mm_empty request.
-#ifndef _mm_cvtsi64_m64
-__inline __m64 _mm_cvtsi64_m64( __int64 v ) { __m64 ret; ret.m64_i64 = v; return ret; }
+
+#if !defined(__clang__)
+	#ifndef _mm_cvtsi64_m64
+	__inline __m64 _mm_cvtsi64_m64( __int64 v ) { __m64 ret; ret.m64_i64 = v; return ret; }
+	#endif
+	#ifndef _mm_cvtm64_si64
+	__inline __int64 _mm_cvtm64_si64( __m64 v ) { return v.m64_i64; }
+	#endif
 #endif
-#ifndef _mm_cvtm64_si64
-__inline __int64 _mm_cvtm64_si64( __m64 v ) { return v.m64_i64; }
-#endif
+
 #pragma warning(pop)
 #endif
 

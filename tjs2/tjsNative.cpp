@@ -368,8 +368,8 @@ tTJSNativeClass::FuncCall(tjs_uint32 flag, const tjs_char * membername,
 	callback.Dest = objthis;
 
 	// enumerate members
-	EnumMembers(TJS_IGNOREPROP,
-		&tTJSVariantClosure(&callback, (iTJSDispatch2*)NULL), this);
+	tTJSVariantClosure variantClosure(&callback, (iTJSDispatch2*)NULL);
+	EnumMembers(TJS_IGNOREPROP, &variantClosure, this);
 
 	return TJS_S_OK;
 }

@@ -3585,8 +3585,7 @@ void tTVPBaseBitmap::DoBoxBlurLoop(const tTVPRect &rect, const tTVPRect & area)
 {
 	// Box-Blur template function used by tTVPBaseBitmap::DoBoxBlur family.
 	// Based on contributed blur code by yun, say thanks to him.
-
-	typedef tARGB::base_int_type base_type;
+	using base_type = typename tARGB::base_int_type;
 
 	tjs_int width = GetWidth();
 	tjs_int height = GetHeight();

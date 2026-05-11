@@ -539,7 +539,7 @@ void __stdcall tTVPMFPlayer::ReleaseAll()
 }
 //----------------------------------------------------------------------------
 void tTVPMFPlayer::NotifyError( HRESULT hr ) {
-	TVPThrowExceptionMessage(L"MF Operation Error.",hr);
+	TVPThrowExceptionMessage(L"MF Operation Error.", (ttstr&)(hr));
 }
 void tTVPMFPlayer::OnMediaItemCleared() {
 }

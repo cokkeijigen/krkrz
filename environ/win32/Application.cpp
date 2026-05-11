@@ -469,7 +469,7 @@ void tTVPApplication::CloseConsole() {
 
 void tTVPApplication::PrintConsole( const wchar_t* mes, unsigned long len, bool iserror ) {
 	HANDLE hStdOutput = ::GetStdHandle(iserror ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
-	if (hStdOutput > 0) {
+	if (hStdOutput != INVALID_HANDLE_VALUE) {
 		DWORD mode;
 		if (GetConsoleMode(hStdOutput, &mode)) {
 			// 実コンソール
@@ -480,19 +480,21 @@ void tTVPApplication::PrintConsole( const wchar_t* mes, unsigned long len, bool 
 			// その他のハンドル
 			ttstr str = mes;
 			tjs_int len = str.GetNarrowStrLen();
-			tjs_nchar *dat = new tjs_nchar[len+1];
-			try {
-				str.ToNarrowStr(dat, len+1);
-			}
-			catch(...)	{
+			if(len != -1) {
+				tjs_nchar *dat = new tjs_nchar[len+1];
+				try {
+					str.ToNarrowStr(dat, len + 1);
+				}
+				catch(...)	{
+					delete [] dat;
+					throw;
+				} 
+				DWORD wlen;
+				::WriteFile( hStdOutput, dat, len, &wlen, NULL );
+				::WriteFile( hStdOutput, "\n", 1, &wlen, NULL );
+				//fprintf(stderr, "%s\n", dat);
 				delete [] dat;
-				throw;
-			} 
-			DWORD wlen;
-			::WriteFile( hStdOutput, dat, len, &wlen, NULL );
-			::WriteFile( hStdOutput, "\n", 1, &wlen, NULL );
-			//fprintf(stderr, "%s\n", dat);
-			delete [] dat;
+			}
 		}
 	}
 #ifdef _DEBUG

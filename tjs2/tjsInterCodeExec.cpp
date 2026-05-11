@@ -3047,8 +3047,8 @@ void tTJSInterCodeContext::RegisterObjectMember(iTJSDispatch2 * dest)
 	callback.Dest = dest;
 
 	// enumerate members
-	EnumMembers(TJS_IGNOREPROP,
-		&tTJSVariantClosure(&callback, (iTJSDispatch2*)NULL), this);
+	tTJSVariantClosure variantClosure(&callback, (iTJSDispatch2*)NULL);
+	EnumMembers(TJS_IGNOREPROP, &variantClosure, this);
 }
 //---------------------------------------------------------------------------
 #define TJS_DO_SUPERCLASS_PROXY_BEGIN \

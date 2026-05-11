@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
-project(KRKRZ C CXX ASM_NASM ASM_MASM)
+project(KRKRZ C CXX ASM_NASM)
 
 set(TARGET_NAME "tvpwin")
 option(TARGET_ARCH_SUFFIX "Enable architecture suffix (32/64) for targets" TRUE)
@@ -12,14 +12,87 @@ if(TARGET_ARCH_SUFFIX)
     endif()
 endif()
 
+set(IS_RELEASE "$<CONFIG:Release>")
+set(IS_C_CPP   "$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>")
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-	add_compile_options(
-		"$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:/source-charset:utf-8>"
-		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/GF>"
-		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/Oy>"
-		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/GL>"
-		"$<$<AND:$<CONFIG:Release>,$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>>:/GS->"
-    )
+
+	set(MSVC_ONLY_FLAGS
+		"/wd4838"
+		"/wd4311"
+		"/wd4312"
+		"/wd4477"
+		"/wd4297"
+		"/source-charset:utf-8"
+	)
+	
+	foreach(flag ${MSVC_ONLY_FLAGS})
+		add_compile_options("$<${IS_C_CPP}:${flag}>")
+	endforeach()
+	
+	set(MSVC_RELEASE_ONLY_FLAGS "/GF" "/Oy" "/GL" "/GS-")
+	foreach(flag ${MSVC_RELEASE_ONLY_FLAGS})
+		add_compile_options(
+			"$<$<AND:${IS_RELEASE},${IS_C_CPP}>:${flag}>"
+		)
+	endforeach()
+
+	enable_language(ASM_MASM)
+
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+	set(CLANG_ONLY_FLAGS
+		"-fms-extensions"
+		"-fms-compatibility"
+		"-Wno-microsoft-template"
+		"-Wno-deprecated-register"
+		"-Waddress-of-temporary"
+		"-Wno-invalid-token-paste"
+		"-Wno-c++11-narrowing"
+		"-Wno-narrowing"
+		"-fno-operator-names"
+		"-fno-sanitize=all"
+		"-fno-stack-protector"
+		"-Wno-ignored-attributes"
+		"-Wno-pointer-to-int-cast"
+		"-Wno-int-to-void-pointer-cast"
+		"-Wno-int-to-pointer-cast"
+		"-Wno-undefined-bool-conversion"
+		"-fno-delete-null-pointer-checks"
+		"-Wno-microsoft-extra-qualification"
+		"-Wno-shift-negative-value"
+		"-Wno-microsoft-enum-forward-reference"
+		"-Wno-delete-abstract-non-virtual-dtor"
+		"-Wno-implicit-exception-spec-mismatch"
+		"-Wno-non-pod-varargs"
+		"-Wno-unused-value"
+		"-Wno-mismatched-new-delete"
+		"-Wno-microsoft-cast"
+		"-Wno-deprecated-declarations"
+		"-Wno-nonportable-include-path"
+		"-Wno-tautological-constant-out-of-range-compare"
+		"-Wno-inconsistent-missing-override"
+		"-Wno-error=deprecated-declarations"
+		"-Wno-microsoft-exception-spec"
+		"-Wno-explicit-specialization-storage-class"
+		"-Wno-error=non-pod-varargs"
+		"-Wno-pointer-bool-conversion"
+		"-Wno-parentheses"
+		"-Wno-null-dereference"
+		"-Wno-deprecated-non-prototype"
+		"-Wno-writable-strings"
+		"-Wno-extra-tokens"
+		"-Wno-switch"
+		"-Wno-exceptions"
+		"-Wno-missing-exception-spec"
+		"-msse4.1" 
+		"-mavx" 
+		"-mavx2"
+	)
+	foreach(flag ${CLANG_ONLY_FLAGS})
+		add_compile_options("$<${IS_C_CPP}:${flag}>")
+	endforeach()
+	add_link_options("-Wl,/SAFESEH:NO")
 endif()
 
 set(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}")
@@ -286,6 +359,7 @@ target_include_directories(KRKRZ PRIVATE
 target_compile_definitions(KRKRZ PRIVATE
 	
     "__WIN32__"
+	"__CODEGUARD__"
 	"_UNICODE" "UNICODE" 
 	"_CRT_SECURE_NO_WARNING"
 
@@ -296,6 +370,7 @@ target_compile_definitions(KRKRZ PRIVATE
 	"TVP_LOG_TO_COMMANDLINE_CONSOLE"
 	"TVP_REPORT_HW_EXCEPTION"
 	"TVP_ENABLE_EXECUTE_AT_EXCEPTION"
+	#"TVP_DISABLE_SELECT_XP3_OR_FOLDER"
 )
 
 target_link_libraries(KRKRZ PRIVATE 
