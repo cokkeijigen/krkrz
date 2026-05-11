@@ -519,7 +519,8 @@ void TVPSaveAsJPG(void* formatdata, tTJSBinaryStream* dst, const tTVPBaseBitmap*
 				return TJS_S_OK;
 			}
 		} callback( &opt );
-		meta->EnumMembers(TJS_IGNOREPROP, &tTJSVariantClosure(&callback, NULL), meta);
+		tTJSVariantClosure variantClosure(&callback, NULL);
+		meta->EnumMembers(TJS_IGNOREPROP, &variantClosure, meta);
 	}
 
 	tjs_uint height = image->GetHeight();
