@@ -1161,7 +1161,7 @@ void TVPBeforeSystemInit()
 				}
 				TVPProjectDirSelected = true;
 			}
-			::CoTaskMemFree( pidlRetFolder );
+			::CoTaskMemFree( (LPVOID)pidlRetFolder );
 		}
 	}
 #endif
@@ -1170,6 +1170,10 @@ void TVPBeforeSystemInit()
 	if(TVPProjectDirSelected)
 	{
 		Application->SetShowMainForm( false );
+	}
+	else 
+	{
+		::ExitProcess(-1);
 	}
 
 	tjs_int buflen = (tjs_int)TJS_strlen(buf);
@@ -1182,10 +1186,7 @@ void TVPBeforeSystemInit()
 	TVPSetCurrentDirectory(TVPProjectDir);
 	TVPNativeProjectDir = buf;
 
-	if(TVPProjectDirSelected)
-	{
-		TVPAddImportantLog( TVPFormatMessage(TVPInfoSelectedProjectDirectory, TVPProjectDir) );
-	}
+	TVPAddImportantLog( TVPFormatMessage(TVPInfoSelectedProjectDirectory, TVPProjectDir) );
 }
 //---------------------------------------------------------------------------
 static void TVPDumpOptions();
