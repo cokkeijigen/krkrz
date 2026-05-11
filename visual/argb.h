@@ -99,25 +99,25 @@ struct tTVPARGB
 //---------------------------------------------------------------------------
 // special member functions for tjs_uint8
 template <>
-void tTVPARGB<tjs_uint8>::Zero()
+inline void tTVPARGB<tjs_uint8>::Zero()
 {
 	*(tjs_uint32 *)this = 0;
 }
 
 template <>
-void tTVPARGB<tjs_uint8>::operator = (tjs_uint32 v)
+inline void tTVPARGB<tjs_uint8>::operator = (tjs_uint32 v)
 {
 	*(tjs_uint32 *)this = v;
 }
 
 template <>
-tTVPARGB<tjs_uint8>::operator tjs_uint32() const
+inline tTVPARGB<tjs_uint8>::operator tjs_uint32() const
 {
 	return *(const tjs_uint32 *)this;
 }
 
 template <>
-void tTVPARGB<tjs_uint8>::average(tjs_int n)
+inline void tTVPARGB<tjs_uint8>::average(tjs_int n)
 {
 	tjs_int half_n = n >> 1;
 
@@ -132,7 +132,7 @@ void tTVPARGB<tjs_uint8>::average(tjs_int n)
 //---------------------------------------------------------------------------
 // special member functions for tjs_uint16
 template <>
-void tTVPARGB<tjs_uint16>::average(tjs_int n)
+inline void tTVPARGB<tjs_uint16>::average(tjs_int n)
 {
 	tjs_int half_n = n >> 1;
 
@@ -147,7 +147,7 @@ void tTVPARGB<tjs_uint16>::average(tjs_int n)
 //---------------------------------------------------------------------------
 // special member functions for tjs_uint32
 template <>
-void tTVPARGB<tjs_uint32>::average(tjs_int n)
+inline void tTVPARGB<tjs_uint32>::average(tjs_int n)
 {
 	tjs_int half_n = n >> 1;
 
