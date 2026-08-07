@@ -54,7 +54,11 @@ else()
 endif()
 
 add_library(baseclasses STATIC ${BASECLASSES_SOURCES})
-
+set_target_properties(baseclasses PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 target_include_directories(baseclasses PUBLIC
 	"${SOURCE_ROOT}/external/baseclasses/"
 )

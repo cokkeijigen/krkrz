@@ -140,7 +140,7 @@ void TVPSaveAsJXR(void* formatdata, tTJSBinaryStream* dst, const class tTVPBaseB
 			WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
 			if( SUCCEEDED(hr) && meta ) {
 				PROPBAG2 option = { 0 };
-				option.pstrName = L"UseCodecOptions";	// 詳細なオプションを指定する
+				option.pstrName = (LPOLESTR)L"UseCodecOptions";	// 詳細なオプションを指定する
 				_variant_t varValue( true );
 				hr = property->Write( 1, &option, &varValue );
 
@@ -166,11 +166,11 @@ void TVPSaveAsJXR(void* formatdata, tTJSBinaryStream* dst, const class tTVPBaseB
 							v = v < 1 ? 1 : v > 255 ? 255 : v;
 							UCHAR q = (UCHAR)v;
 							PROPBAG2 option = { 0 };
-							option.pstrName = L"Quality";	//  1 : lossless mode, 2 - 255 : 値が小さい方が高画質
+							option.pstrName = (LPOLESTR)L"Quality";	//  1 : lossless mode, 2 - 255 : 値が小さい方が高画質
 							_variant_t varValue( q );
 							hr = prop_->Write( 1, &option, &varValue );
 							if( q == 1 ) {
-								option.pstrName = L"Lossless";	// ロスレスモード
+								option.pstrName = (LPOLESTR)L"Lossless";	// ロスレスモード
 								_variant_t var( VARIANT_TRUE );
 								hr = prop_->Write( 1, &option, &var );
 							}
@@ -179,7 +179,7 @@ void TVPSaveAsJXR(void* formatdata, tTJSBinaryStream* dst, const class tTVPBaseB
 							v = v < 1 ? 1 : v > 255 ? 255 : v;
 							UCHAR q = (UCHAR)v;
 							PROPBAG2 option = { 0 };
-							option.pstrName = L"InterleavedAlpha";
+							option.pstrName = (LPOLESTR)L"InterleavedAlpha";
 							if( q == 1 ) {
 								_variant_t varValue( VARIANT_TRUE );
 								hr = prop_->Write( 1, &option, &varValue );
@@ -187,7 +187,7 @@ void TVPSaveAsJXR(void* formatdata, tTJSBinaryStream* dst, const class tTVPBaseB
 								_variant_t varValue( VARIANT_FALSE );
 								hr = prop_->Write( 1, &option, &varValue );
 							}
-							option.pstrName = L"AlphaQuality";	//  1 : lossless mode, 2 - 255 : 値が小さい方が高画質
+							option.pstrName = (LPOLESTR)L"AlphaQuality";	//  1 : lossless mode, 2 - 255 : 値が小さい方が高画質
 							_variant_t varValue( q );
 							hr = prop_->Write( 1, &option, &varValue );
 						} else if( value == TJS_W("subsampling") ) {
@@ -196,7 +196,7 @@ void TVPSaveAsJXR(void* formatdata, tTJSBinaryStream* dst, const class tTVPBaseB
 							v = v < 0 ? 0 : v > 3 ? 3 : v;
 							UCHAR q = (UCHAR)v;
 							PROPBAG2 option = { 0 };
-							option.pstrName = L"Subsampling";
+							option.pstrName = (LPOLESTR)L"Subsampling";
 							_variant_t varValue( q );
 							hr = prop_->Write( 1, &option, &varValue );
 						} else if( value == TJS_W("alpha") ) {

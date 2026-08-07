@@ -43,7 +43,7 @@ CUnknown * WINAPI TBufferRenderer::CreateInstance( LPUNKNOWN pUnk, HRESULT *phr 
 //! @param		pUnk : 集成された所有者オブジェクトへのポインタ。
 //! @param		phr : HRESULT 値へのポインタ。
 //----------------------------------------------------------------------------
-TBufferRenderer::TBufferRenderer( TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr )
+TBufferRenderer::TBufferRenderer(const TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr )
  : CBaseVideoRenderer( CLSID_BufferRenderer, pName, pUnk, phr )
 , m_InputPin( this, &m_InterfaceLock, phr, L"Input" )
 , m_Allocator( this, NAME("Allocator"), GetOwner(), phr )
@@ -746,7 +746,7 @@ void TBufferRendererInputPin::SetPointer( BYTE *ptr )
 //! @param		pUnk : 集成された所有者オブジェクトへのポインタ。
 //! @param		phr : メソッドの成功・失敗を示す HRESULT 値を取得する変数のポインタ。
 //----------------------------------------------------------------------------
-TBufferRendererAllocator::TBufferRendererAllocator( TBufferRenderer *pRenderer, TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr)
+TBufferRendererAllocator::TBufferRendererAllocator( TBufferRenderer *pRenderer,const TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr)
  : CBaseAllocator(pName, pUnk, phr), m_pMediaSample(NULL), m_pRenderer(pRenderer)
 {}
 //----------------------------------------------------------------------------

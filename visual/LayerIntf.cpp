@@ -5863,7 +5863,7 @@ void tTJSNI_BaseLayer::DrawCompleted(const tTVPRect &destrect,
 			tTVPComplexRect nr; // new region
 			nr.Or(destrect);
 			nr.Sub(DrawnRegion);
-			tTVPComplexRect or; // operation region
+			tTVPComplexRect _or; // operation region
 			// now nr is a client region which is not overlapped by children
 			// at this time
 			if(DisplayType == type && opacity == 255)
@@ -5885,8 +5885,8 @@ void tTJSNI_BaseLayer::DrawCompleted(const tTVPRect &destrect,
 						bmp, sr);
 				}
 				// calculate operation region
-				or.Or(destrect);
-				or.Sub(nr);
+				_or.Or(destrect);
+				_or.Sub(nr);
 			}
 			else
 			{
@@ -5903,11 +5903,11 @@ void tTJSNI_BaseLayer::DrawCompleted(const tTVPRect &destrect,
 							// CopySelf of MainImage == NULL actually
 							// fills target rectangle with full transparency
 				}
-				or.Or(destrect);
+				_or.Or(destrect);
 			}
 
 			// operate r
-			tTVPComplexRect::tIterator it = or.GetIterator();
+			tTVPComplexRect::tIterator it = _or.GetIterator();
 			while(it.Step())
 			{
 				tTVPRect r(*it);
@@ -5982,27 +5982,27 @@ void tTJSNI_BaseLayer::InternalComplete2(tTVPComplexRect & updateregion,
 
 			// split to some stripes
 			tjs_int y;
-			tTVPRect or;
-			or.left = r.left;
-			or.right = r.right;
+			tTVPRect _or;
+			_or.left = r.left;
+			_or.right = r.right;
 			if(TVPGraphicSplitOperationType == gsotInterlace)
 			{
 				// interlaced split
 				for(y = r.top; y < r.bottom; y+= oh*2)
 				{
-					or.top = y;
-					or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
+					_or.top = y;
+					_or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
 
 					// call "Draw" to draw to the window
-					Draw(drawable, or, false);
+					Draw(drawable, _or, false);
 				}
 				for(y = r.top + oh; y < r.bottom; y+= oh*2)
 				{
-					or.top = y;
-					or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
+					_or.top = y;
+					_or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
 
 					// call "Draw" to draw to the window
-					Draw(drawable, or, false);
+					Draw(drawable, _or, false);
 				}
 			}
 			else if(TVPGraphicSplitOperationType == gsotSimple)
@@ -6010,11 +6010,11 @@ void tTJSNI_BaseLayer::InternalComplete2(tTVPComplexRect & updateregion,
 				// non-interlaced
 				for(y = r.top; y < r.bottom; y+=oh)
 				{
-					or.top = y;
-					or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
+					_or.top = y;
+					_or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
 
 					// call "Draw" to draw to the window
-					Draw(drawable, or, false);
+					Draw(drawable, _or, false);
 				}
 			}
 			else if(TVPGraphicSplitOperationType == gsotBiDirection)
@@ -6025,11 +6025,11 @@ void tTJSNI_BaseLayer::InternalComplete2(tTVPComplexRect & updateregion,
 				{
 					for(y = r.top; y < r.bottom; y+=oh)
 					{
-						or.top = y;
-						or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
+						_or.top = y;
+						_or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
 
 						// call "Draw" to draw to the window
-						Draw(drawable, or, false);
+						Draw(drawable, _or, false);
 					}
 				}
 				else
@@ -6038,13 +6038,13 @@ void tTJSNI_BaseLayer::InternalComplete2(tTVPComplexRect & updateregion,
 					if(y < r.top) y = r.top;
 					while(1)
 					{
-						or.top = (y < r.top ? r.top : y);
-						or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
+						_or.top = (y < r.top ? r.top : y);
+						_or.bottom = (y+oh < r.bottom) ? y+oh: r.bottom;
 
-						if(or.bottom <= r.top) break;
+						if(_or.bottom <= r.top) break;
 
 						// call "Draw" to draw to the window
-						Draw(drawable, or, false);
+						Draw(drawable, _or, false);
 
 						y-=oh;
 					}

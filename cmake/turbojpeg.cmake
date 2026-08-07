@@ -135,6 +135,12 @@ add_library(turbojpeg OBJECT
 	${TURBOJPEG_SIMD_SOURCES}
 )
 
+set_target_properties(turbojpeg PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
 target_include_directories(turbojpeg 
 	PUBLIC "${TURBOJPEG_INCLUDE}"
 )

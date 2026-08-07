@@ -83,6 +83,14 @@ endif()
 
 add_library(zlib OBJECT ${ZLIB_C_SOURCES} ${ZLIB_ASM_SOURCES})
 
+
+set_target_properties(zlib PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
+
 target_include_directories(zlib PUBLIC 
     "${SOURCE_ROOT}/external/zlib" 
     "${CMAKE_BINARY_DIR}/zlib"

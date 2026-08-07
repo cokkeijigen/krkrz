@@ -80,6 +80,11 @@ set(ONIG_SOURCES
 
 add_library(onig OBJECT ${ONIG_SOURCES})
 
+set_target_properties(onig PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 target_include_directories(onig PUBLIC 
 	"${SOURCE_ROOT}/external/onig/src/"
 	"${CMAKE_BINARY_DIR}/onig/"

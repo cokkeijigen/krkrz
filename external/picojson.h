@@ -672,7 +672,7 @@ inline std::ostream& operator<<(std::ostream& os, const picojson::value& x)
     #pragma warning(disable : 4127) // conditional expression is constant
 #endif
 
-using namespace std;
+//using namespace std;
   
 static void plan(int num)
 {

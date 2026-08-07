@@ -4,6 +4,9 @@ project(KRKRZ C CXX ASM_NASM)
 set(TARGET_NAME "tvpwin")
 option(TARGET_ARCH_SUFFIX "Enable architecture suffix (32/64) for targets" TRUE)
 
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if(TARGET_ARCH_SUFFIX)
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         set(TARGET_NAME "${TARGET_NAME}32")

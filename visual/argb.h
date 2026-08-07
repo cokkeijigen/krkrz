@@ -44,29 +44,29 @@ struct tTVPARGB
 
 	void Zero()
 	{
-		b = g = r = a = 0;
+		this->b = this->g = this->r = this->a = 0;
 	}
 
 	void operator += (const tTVPARGB & rhs)
-		{ b += rhs.b; g += rhs.g; r += rhs.r; a += rhs.a; }
+		{ this->b += rhs.b; this->g += rhs.g; this->r += rhs.r; this->a += rhs.a; }
 
 	void operator -= (const tTVPARGB & rhs)
-		{ b -= rhs.b; g -= rhs.g; r -= rhs.r; a -= rhs.a; }
+		{ this->b -= rhs.b; this->g -= rhs.g; this->r -= rhs.r; this->a -= rhs.a; }
 
 	void operator += (tjs_uint32 v)
 	{
-		b += v & 0xff;
-		g += (v>>8) & 0xff;
-		r += (v>>16) & 0xff;
-		a += (v>>24);
+		this->b += v & 0xff;
+		this->g += (v>>8) & 0xff;
+		this->r += (v>>16) & 0xff;
+		this->a += (v>>24);
 	}
 
 	void operator -= (tjs_uint32 v)
 	{
-		b -= v & 0xff;
-		g -= (v>>8) & 0xff;
-		r -= (v>>16) & 0xff;
-		a -= (v>>24);
+		this->b -= v & 0xff;
+		this->g -= (v>>8) & 0xff;
+		this->r -= (v>>16) & 0xff;
+		this->a -= (v>>24);
 	}
 
 //	void operator = (const tTVPARGB & rhs)
@@ -76,23 +76,23 @@ struct tTVPARGB
 	{
 		tjs_int half_n = n >> 1;
 
-		b /= n;
-		g /= n;
-		r /= n;
-		a /= n;
+		this->b /= n;
+		this->g /= n;
+		this->r /= n;
+		this->a /= n;
 	}
 
 	void operator = (tjs_uint32 v)
 	{
-		a = v >> 24,
-		r = (v >> 16) & 0xff,
-		g = (v >> 8) & 0xff,
-		b = v & 0xff;
+		this->a = v >> 24,
+		this->r = (v >> 16) & 0xff,
+		this->g = (v >> 8) & 0xff,
+		this->b = v & 0xff;
 	}
 
 	operator tjs_uint32() const
 	{
-		return b + (g << 8) + (r << 16) + (a << 24);
+		return this->b + (this->g << 8) + (this->r << 16) + (this->a << 24);
 	}
 
 };
@@ -123,10 +123,10 @@ inline void tTVPARGB<tjs_uint8>::average(tjs_int n)
 
 	tjs_int recip = (1L<<23) / n;
 
-	b = (b+half_n)*recip >> 23;
-	g = (g+half_n)*recip >> 23;
-	r = (r+half_n)*recip >> 23;
-	a = (a+half_n)*recip >> 23;
+	this->b = (this->b+half_n)*recip >> 23;
+	this->g = (this->g+half_n)*recip >> 23;
+	this->r = (this->r+half_n)*recip >> 23;
+	this->a = (this->a+half_n)*recip >> 23;
 }
 
 //---------------------------------------------------------------------------
@@ -138,10 +138,10 @@ inline void tTVPARGB<tjs_uint16>::average(tjs_int n)
 
 	tjs_int recip = (1L<<16) / n;
 
-	b = (b+half_n)*recip >> 16;
-	g = (g+half_n)*recip >> 16;
-	r = (r+half_n)*recip >> 16;
-	a = (a+half_n)*recip >> 16;
+	this->b = (this->b + half_n) * recip >> 16;
+	this->g = (this->g + half_n) * recip >> 16;
+	this->r = (this->r + half_n) * recip >> 16;
+	this->a = (this->a+half_n)*recip >> 16;
 }
 
 //---------------------------------------------------------------------------
@@ -151,10 +151,10 @@ inline void tTVPARGB<tjs_uint32>::average(tjs_int n)
 {
 	tjs_int half_n = n >> 1;
 
-	b = (b+half_n)/n;
-	g = (g+half_n)/n;
-	r = (r+half_n)/n;
-	a = (a+half_n)/n;
+	this->b = (this->b + half_n) / n;
+	this->g = (this->g + half_n) / n;
+	this->r = (this->r + half_n) / n;
+	this->a = (this->a+half_n)/n;
 }
 
 
@@ -165,10 +165,10 @@ template <typename base_type>
 struct tTVPARGB_AA : public tTVPARGB<base_type>
 {
 	void operator += (const tTVPARGB_AA & rhs)
-		{ b += rhs.b; g += rhs.g; r += rhs.r; a += rhs.a; }
+		{ this->b += rhs.b; this->g += rhs.g; this->r += rhs.r; this->a += rhs.a; }
 
 	void operator -= (const tTVPARGB_AA & rhs)
-		{ b -= rhs.b; g -= rhs.g; r -= rhs.r; a -= rhs.a; }
+		{ this->b -= rhs.b; this->g -= rhs.g; this->r -= rhs.r; this->a -= rhs.a; }
 
 	// Four methods, which convert itself from/to tjs_uint32 (packed ARGB),
 	// are overrided.
@@ -176,36 +176,36 @@ struct tTVPARGB_AA : public tTVPARGB<base_type>
 	void operator += (tjs_uint32 v)
 	{
 		tjs_int aadj;
-		a += (aadj = (v>>24));
+		this->a += (aadj = (v>>24));
 		aadj += aadj >> 7;
-		b += (v & 0xff) * aadj >> 8;
-		g += ((v>>8) & 0xff) * aadj >> 8;
-		r += ((v>>16) & 0xff) * aadj >> 8;
+		this->b += (v & 0xff) * aadj >> 8;
+		this->g += ((v>>8) & 0xff) * aadj >> 8;
+		this->r += ((v>>16) & 0xff) * aadj >> 8;
 	}
 
 	void operator -= (tjs_uint32 v)
 	{
 		tjs_int aadj;
-		a -= (aadj = (v>>24));
+		this->a -= (aadj = (v>>24));
 		aadj += aadj >> 7;
-		b -= (v & 0xff) * aadj >> 8;
-		g -= ((v>>8) & 0xff) * aadj >> 8;
-		r -= ((v>>16) & 0xff) * aadj >> 8;
+		this->b -= (v & 0xff) * aadj >> 8;
+		this->g -= ((v>>8) & 0xff) * aadj >> 8;
+		this->r -= ((v>>16) & 0xff) * aadj >> 8;
 	}
 
 	void operator = (tjs_uint32 v)
 	{
-		a = v >> 24,
-		tjs_int aadj = a + (a >> 7); // adjusted alpha
-		r = ((v >> 16) & 0xff) * aadj >> 8,
-		g = ((v >> 8) & 0xff) * aadj >> 8,
-		b = (v & 0xff) * aadj >> 8;
+		this->a = v >> 24;
+		tjs_int aadj = this->a + (this->a >> 7); // adjusted alpha
+		this->r = ((v >> 16) & 0xff) * aadj >> 8,
+		this->g = ((v >> 8) & 0xff) * aadj >> 8,
+		this->b = (v & 0xff) * aadj >> 8;
 	}
 
 	operator tjs_uint32() const
 	{
-		tjs_uint8 *t = TVPDivTable + (a << 8);
-		return t[b] + (t[g] << 8) + (t[r] << 16) + (a << 24);
+		tjs_uint8 *t = TVPDivTable + (this->a << 8);
+		return t[this->b] + (t[this->g] << 8) + (t[this->r] << 16) + (this->a << 24);
 	}
 
 };

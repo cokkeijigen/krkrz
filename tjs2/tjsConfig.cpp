@@ -316,7 +316,8 @@ tTJSNarrowStringHolder::tTJSNarrowStringHolder(const wchar_t * wide)
 
 	if( n == -1 )
 	{
-		Buf = TJS_N("");
+		static char _empty[] = TJS_N("");
+		Buf = _empty;
 		Allocated = false;
 		return;
 	}

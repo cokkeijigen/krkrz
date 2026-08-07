@@ -129,6 +129,7 @@ void tTJSStringAppender::Append(const tjs_char *string, tjs_int len)
 //---------------------------------------------------------------------------
 // tTJSArraySortCompare  : a class for comarison operator
 //---------------------------------------------------------------------------
+#if 0
 class tTJSArraySortCompare_NormalAscending :
 	public std::binary_function<const tTJSVariant &, const tTJSVariant &, bool>
 {
@@ -229,6 +230,140 @@ public:
 		return result.operator bool();
 	}
 };
+#else
+//---------------------------------------------------------------------------
+// tTJSArraySortCompare  : a class for comarison operator (C++17 compatible)
+//---------------------------------------------------------------------------
+class tTJSArraySortCompare_NormalAscending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		return (lhs < rhs).operator bool();
+	}
+};
+
+class tTJSArraySortCompare_NormalDescending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		return (lhs > rhs).operator bool();
+	}
+};
+
+class tTJSArraySortCompare_NumericAscending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		if (lhs.Type() == tvtString && rhs.Type() == tvtString)
+		{
+			tTJSVariant ltmp(lhs), rtmp(rhs);
+			ltmp.tonumber();
+			rtmp.tonumber();
+			return (ltmp < rtmp).operator bool();
+		}
+		return (lhs < rhs).operator bool();
+	}
+};
+
+class tTJSArraySortCompare_NumericDescending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		if (lhs.Type() == tvtString && rhs.Type() == tvtString)
+		{
+			tTJSVariant ltmp(lhs), rtmp(rhs);
+			ltmp.tonumber();
+			rtmp.tonumber();
+			return (ltmp > rtmp).operator bool();
+		}
+		return (lhs > rhs).operator bool();
+	}
+};
+
+class tTJSArraySortCompare_StringAscending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		if (lhs.Type() == tvtString && rhs.Type() == tvtString)
+			return (lhs < rhs).operator bool();
+		return (ttstr)lhs < (ttstr)rhs;
+	}
+};
+
+class tTJSArraySortCompare_StringDescending
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		if (lhs.Type() == tvtString && rhs.Type() == tvtString)
+			return (lhs > rhs).operator bool();
+		return (ttstr)lhs > (ttstr)rhs;
+	}
+};
+
+class tTJSArraySortCompare_Functional
+{
+public:
+	using result_type = bool;
+	using first_argument_type = const tTJSVariant&;
+	using second_argument_type = const tTJSVariant&;
+
+private:
+	tTJSVariantClosure Closure;
+
+public:
+	tTJSArraySortCompare_Functional(const tTJSVariantClosure& clo) :
+		Closure(clo)
+	{
+	}
+
+	result_type operator () (first_argument_type lhs, second_argument_type rhs) const
+	{
+		tTJSVariant result;
+
+		tjs_error hr;
+		tTJSVariant* param[] = {
+			const_cast<tTJSVariant*>(&lhs),
+			const_cast<tTJSVariant*>(&rhs) };
+
+		hr = Closure.FuncCall(0, NULL, NULL, &result, 2, param, NULL);
+
+		if (TJS_FAILED(hr))
+			TJSThrowFrom_tjs_error(hr);
+
+		return result.operator bool();
+	}
+};
+#endif
 //---------------------------------------------------------------------------
 
 

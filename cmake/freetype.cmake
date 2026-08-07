@@ -47,6 +47,11 @@ set(FREETYPE_INCLUDE
 )
 
 add_library(freetype OBJECT ${FREETYPE_SOURCES})
+set_target_properties(freetype PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
 target_include_directories(freetype 
 	PUBLIC ${FREETYPE_INCLUDE}

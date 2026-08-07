@@ -1510,7 +1510,7 @@ tjs_int tTJSInterCodeContext::ExecuteCode(tTJSVariant *ra_org, tjs_int startip,
 		DisplayExceptionGeneratedCode((tjs_int)(codesave - CodeArea), ra_org);
 		TJS_eTJSScriptError(e.GetMessage(), this, (tjs_int)(codesave-CodeArea));
 	}
-	catch(exception &e)
+	catch(std::exception &e)
 	{
 		DEBUGGER_EXCEPTION_HOOK;
 		DisplayExceptionGeneratedCode((tjs_int)(codesave - CodeArea), ra_org);
@@ -2520,7 +2520,7 @@ void tTJSInterCodeContext::AddClassInstanceInfo(tTJSVariant *ra,
 	}
 }
 //---------------------------------------------------------------------------
-static tjs_char *StrFuncs[] =
+static const tjs_char *StrFuncs[] =
 { 
 	TJS_W("charAt"), 
 	TJS_W("indexOf"), 
@@ -2562,7 +2562,7 @@ static void InitTJSStrFunc()
 	TJSStrFuncInit = true;
 	for(tjs_int i=0; i<TJS_STRFUNC_MAX; i++)
 	{
-		tjs_char *p = StrFuncs[i];
+		const tjs_char *p = StrFuncs[i];
 		tjs_int32 hash = 0;
 		while(*p) hash += *p, p++;
 		StrFuncHash[i] = hash;

@@ -24,7 +24,7 @@
 //! @param		outstream : このピンの出力ストリーム
 //! @param		lock : ロックオブジェクト
 //----------------------------------------------------------------------------
-CDemuxOutputPin::CDemuxOutputPin( TCHAR *szName, CSource *pFilter, HRESULT *pHr, LPCWSTR pszName, IMediaSeeking *pSeek, IOutputStream *outstream, CCritSec *lock )
+CDemuxOutputPin::CDemuxOutputPin(const TCHAR *szName, CSource *pFilter, HRESULT *pHr, LPCWSTR pszName, IMediaSeeking *pSeek, IOutputStream *outstream, CCritSec *lock )
  : CSourceStream( szName, pHr, pFilter, pszName ), m_SeekProxy(pSeek), m_Stream(outstream), m_Lock(lock)
 {}
 //----------------------------------------------------------------------------

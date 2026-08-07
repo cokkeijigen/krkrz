@@ -27,7 +27,7 @@ class TVPTimer {
 
 	int CreateUtilWindow();
 	void Destroy();
-	static LRESULT WINAPI TVPTimer::WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
+	static LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 	void UpdateTimer();
 
 	void FireEvent() {

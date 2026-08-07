@@ -195,7 +195,7 @@ public:
     // construction / destruction
 
     CAsyncReader(
-        TCHAR *pName,
+        const TCHAR *pName,
         LPUNKNOWN pUnk,
         CAsyncStream *pStream,
         HRESULT *phr);

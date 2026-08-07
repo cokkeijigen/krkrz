@@ -144,7 +144,7 @@ extern void TJSGetExceptionObject(tTJS *tjs, tTJSVariant *res, tTJSVariant &msg,
 		} \
 		when_catched; \
 	} \
-	catch(exception &e) \
+	catch(std::exception &e) \
 	{ \
 		before_catched \
 		if(result_condition) \

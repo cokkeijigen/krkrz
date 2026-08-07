@@ -39,8 +39,8 @@ protected:
 	HRESULT Alloc(void);
 
 public:
-	TBufferRendererAllocator( TBufferRenderer *, TCHAR *, LPUNKNOWN, HRESULT * );
-	TBufferRendererAllocator( TCHAR *, LPUNKNOWN, HRESULT * );
+	TBufferRendererAllocator( TBufferRenderer *, const TCHAR *, LPUNKNOWN, HRESULT * );
+	TBufferRendererAllocator(const TCHAR *, LPUNKNOWN, HRESULT * );
 	virtual ~TBufferRendererAllocator();
 
 	// オーバーライド
@@ -101,7 +101,7 @@ private:
 
 public:
 	static CUnknown * WINAPI CreateInstance( LPUNKNOWN, HRESULT * );
-	TBufferRenderer( TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr );
+	TBufferRenderer(const TCHAR *pName, LPUNKNOWN pUnk, HRESULT *phr );
 	~TBufferRenderer();
 
 	DECLARE_IUNKNOWN

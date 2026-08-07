@@ -17,6 +17,12 @@ add_library(libpng OBJECT
 	"${SOURCE_ROOT}/external/lpng/pngwutil.c"
 )
 
+set_target_properties(libpng PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
 target_link_libraries(libpng PUBLIC zlib)
 
 target_include_directories(libpng PUBLIC

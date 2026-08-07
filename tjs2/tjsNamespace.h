@@ -13,7 +13,7 @@
 
 #include "tjsVariant.h"
 #include <vector>
-using namespace std;
+//using namespace std;
 
 namespace TJS
 {
@@ -29,7 +29,7 @@ struct tTJSLocalSymbol
 //---------------------------------------------------------------------------
 class tTJSLocalSymbolList
 {
-	vector<tTJSLocalSymbol *> List;
+	std::vector<tTJSLocalSymbol *> List;
 	tjs_int LocalCountStart;
 	tjs_int *StartWriteAddr;
 	tjs_int *CountWriteAddr;
@@ -56,7 +56,7 @@ public:
 //---------------------------------------------------------------------------
 class tTJSLocalNamespace
 {
-	vector<tTJSLocalSymbolList *> Levels;
+	std::vector<tTJSLocalSymbolList *> Levels;
 	tjs_int MaxCount; // max count of local variables
 	tjs_int CurrentCount; // current local variable count
 	tjs_int * MaxCountWriteAddr;

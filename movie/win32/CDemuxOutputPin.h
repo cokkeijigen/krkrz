@@ -28,7 +28,7 @@ class CDemuxOutputPin : public CSourceStream
 	CCritSec			*m_Lock;
 
 public:
-	CDemuxOutputPin( TCHAR *szName, CSource *pFilter, HRESULT *pHr, LPCWSTR pszName, IMediaSeeking *pSeek, IOutputStream *outstream, CCritSec *lock );
+	CDemuxOutputPin(const TCHAR *szName, CSource *pFilter, HRESULT *pHr, LPCWSTR pszName, IMediaSeeking *pSeek, IOutputStream *outstream, CCritSec *lock );
 	virtual ~CDemuxOutputPin();
 
 	DECLARE_IUNKNOWN

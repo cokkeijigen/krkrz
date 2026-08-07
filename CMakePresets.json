@@ -45,6 +45,17 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
+      "name": "windows-msvc-x86-relwithdebinfo",
+      "displayName": "Windows MSVC x86 RelWithDebInfo",
+      "description": "Targeting Windows x32 with MSVC (RelWithDebInfo)",
+      "inherits": "base-windows-msvc",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    {
       "name": "windows-msvc-x64-release",
       "displayName": "Windows MSVC x64 Release",
       "description": "Targeting Windows x64 with MSVC (Release)",
@@ -65,6 +76,17 @@
         "strategy": "external"
       },
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "windows-msvc-x64-relwithdebinfo",
+      "displayName": "Windows MSVC x64 RelWithDebInfo",
+      "description": "Targeting Windows x64 with MSVC (RelWithDebInfo)",
+      "inherits": "base-windows-msvc",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
     },
     {
       "name": "base-windows-clang",
@@ -103,6 +125,17 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
+      "name": "windows-clang-x86-relwithdebinfo",
+      "displayName": "Windows Clang x86 RelWithDebInfo",
+      "description": "Targeting Windows x32 with Clang (RelWithDebInfo)",
+      "inherits": "base-windows-clang",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    {
       "name": "windows-clang-x64-release",
       "displayName": "Windows Clang x64 Release",
       "description": "Targeting Windows x64 with Clang (Release)",
@@ -123,6 +156,17 @@
         "strategy": "external"
       },
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "windows-clang-x64-relwithdebinfo",
+      "displayName": "Windows Clang x64 RelWithDebInfo",
+      "description": "Targeting Windows x64 with Clang (RelWithDebInfo)",
+      "inherits": "base-windows-clang",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
     }
   ],
   "buildPresets": [
@@ -135,12 +179,20 @@
       "configurePreset": "windows-msvc-x86-debug"
     },
     {
+      "name": "windows-msvc-x86-relwithdebinfo",
+      "configurePreset": "windows-msvc-x86-relwithdebinfo"
+    },
+    {
       "name": "windows-msvc-x64-release",
       "configurePreset": "windows-msvc-x64-release"
     },
     {
       "name": "windows-msvc-x64-debug",
       "configurePreset": "windows-msvc-x64-debug"
+    },
+    {
+      "name": "windows-msvc-x64-relwithdebinfo",
+      "configurePreset": "windows-msvc-x64-relwithdebinfo"
     },
     {
       "name": "windows-clang-x86-release",
@@ -151,12 +203,20 @@
       "configurePreset": "windows-clang-x86-debug"
     },
     {
+      "name": "windows-clang-x86-relwithdebinfo",
+      "configurePreset": "windows-clang-x86-relwithdebinfo"
+    },
+    {
       "name": "windows-clang-x64-release",
       "configurePreset": "windows-clang-x64-release"
     },
     {
       "name": "windows-clang-x64-debug",
       "configurePreset": "windows-clang-x64-debug"
+    },
+    {
+      "name": "windows-clang-x64-relwithdebinfo",
+      "configurePreset": "windows-clang-x64-relwithdebinfo"
     }
   ]
 }

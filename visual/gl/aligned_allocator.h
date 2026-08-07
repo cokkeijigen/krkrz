@@ -12,6 +12,14 @@
 template< class T, int TAlign=16 >
 struct aligned_allocator : public std::allocator<T>
 {
+	using value_type = T;
+	using pointer = T*;
+	using const_pointer = const T*;
+	using reference = T&;
+	using const_reference = const T&;
+	using size_type = std::size_t;
+	using difference_type = std::ptrdiff_t;
+
 	static const int ALIGN_SIZE = TAlign;
 	template <class U> struct rebind    { typedef aligned_allocator<U,TAlign> other; };
 	aligned_allocator() throw() {}

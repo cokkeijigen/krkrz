@@ -120,7 +120,7 @@ struct sse2_apply_color_map_xx_o_functor : tbase {
 	}
 	inline __m128i operator()( __m128i md1, tjs_uint32 s ) const {
 		__m128i mo = _mm_cvtsi32_si128( s );
-		mo = _mm_unpacklo_epi8( mo, zero_ );	// 0000 0o 0o 0o 0o
+		mo = _mm_unpacklo_epi8( mo, tbase::zero_ );	// 0000 0o 0o 0o 0o
 		mo = _mm_mullo_epi16( mo, opa_ );
 		mo = _mm_srli_epi16( mo, 8 );
 		mo = _mm_unpacklo_epi16( mo, mo );	// 1 1 2 2 3 3 4 4
@@ -135,7 +135,7 @@ struct sse2_apply_color_map_xx_straight_functor : tbase {
 	}
 	inline __m128i operator()( __m128i md1, tjs_uint32 s ) const {
 		__m128i mo = _mm_cvtsi32_si128( s );
-		mo = _mm_unpacklo_epi8( mo, zero_ );	// 0000 0o 0o 0o 0o
+		mo = _mm_unpacklo_epi8( mo, tbase::zero_ );	// 0000 0o 0o 0o 0o
 		mo = _mm_unpacklo_epi16( mo, mo );		// 1 1 2 2 3 3 4 4
 		return tbase::operator()( md1, mo );
 	}
