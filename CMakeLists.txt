@@ -3,7 +3,6 @@ project(KRKRZ C CXX ASM_NASM)
 
 set(TARGET_NAME "tvpwin")
 option(TARGET_ARCH_SUFFIX "Enable architecture suffix (32/64) for targets" TRUE)
-
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -19,6 +18,22 @@ set(IS_RELEASE "$<CONFIG:Release>")
 set(IS_C_CPP   "$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+
+
+	if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
+
+		set(YY_THUNKS_Win2K_OBJ "${CMAKE_CURRENT_LIST_DIR}/YY_Thunks_for_Win2K.obj" PARENT_SCOPE)
+		set(YY_THUNKS_ENTRY     "/ENTRY:DllMainCRTStartupForYY_Thunks"              PARENT_SCOPE)
+		set(CMAKE_CXX_STANDARD_LIBRARIES "\"${YY_THUNKS_Win2K_OBJ}\" ${CMAKE_CXX_STANDARD_LIBRARIES}")
+		set(CMAKE_C_STANDARD_LIBRARIES   "\"${YY_THUNKS_Win2K_OBJ}\" ${CMAKE_C_STANDARD_LIBRARIES}"  )
+		#add_link_options("-SUBSYSTEM:CONSOLE,5.01")
+		include("VC-LTL helper for cmake.cmake")
+
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+    elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+    endif()
 
 	set(MSVC_ONLY_FLAGS
 		"/wd4838"
@@ -307,6 +322,10 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/visual/VideoOvlIntf.cpp"
 	"${SOURCE_ROOT}/visual/WindowIntf.cpp"
 	"${SOURCE_ROOT}/visual/tvpgl.c"
+
+	"${SOURCE_ROOT}/extension/font_register.cpp"
+	"${SOURCE_ROOT}/extension/font_register_tjs.cpp"
+
 )
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -360,7 +379,6 @@ target_include_directories(KRKRZ PRIVATE
 )
 
 target_compile_definitions(KRKRZ PRIVATE
-	
     "__WIN32__"
 	"__CODEGUARD__"
 	"_UNICODE" "UNICODE" 
@@ -374,6 +392,7 @@ target_compile_definitions(KRKRZ PRIVATE
 	"TVP_REPORT_HW_EXCEPTION"
 	"TVP_ENABLE_EXECUTE_AT_EXCEPTION"
 	#"TVP_DISABLE_SELECT_XP3_OR_FOLDER"
+	"__CONSOLE_ENABLED__"
 )
 
 target_link_libraries(KRKRZ PRIVATE 
