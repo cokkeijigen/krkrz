@@ -93,7 +93,7 @@ endif()
 
 add_library(baseclasses STATIC ${BASECLASSES_SOURCES})
 set_target_properties(baseclasses PROPERTIES
-    CXX_STANDARD 11
+    CXX_STANDARD 14
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
 )
