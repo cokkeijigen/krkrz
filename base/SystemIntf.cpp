@@ -78,7 +78,7 @@ void TVPFireOnApplicationActivateEvent(bool activate_or_deactivate)
 //---------------------------------------------------------------------------
 
 
-
+#include <font_register_tjs.hpp>
 
 //---------------------------------------------------------------------------
 // tTJSNC_System
@@ -99,6 +99,30 @@ TJS_END_NATIVE_CONSTRUCTOR_DECL(/*TJS class name*/System)
 //----------------------------------------------------------------------
 
 //-- methods
+
+
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/registerPrivateFont)
+{
+	return font_register_tjs::registerPrivateFont(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/registerPrivateFont)
+
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/unregisterPrivateFont)
+{
+	return font_register_tjs::unregisterPrivateFont(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/unregisterPrivateFont)
+
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/getPrivateFontName)
+{
+	return font_register_tjs::getPrivateFontName(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/getPrivateFontName)
+
+
 
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/terminate)
