@@ -191,6 +191,20 @@ void AcceleratorKey::DelKey( WORD id ) {
 
 int APIENTRY wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow ) {
 	try {
+		
+		#ifdef __CONSOLE_ENABLED__
+		if (!::AttachConsole(ATTACH_PARENT_PROCESS))
+		{
+			::AllocConsole();
+		}
+		FILE* fpOut = nullptr;
+		freopen_s(&fpOut, "CONOUT$", "w", stdout);
+		FILE* fpErr = nullptr;
+		freopen_s(&fpErr, "CONOUT$", "w", stderr);
+		FILE* fpIn = nullptr;
+		freopen_s(&fpIn, "CONIN$", "r", stdin);
+		#endif
+
 		CheckMemoryLeaksStart();
 		// ウォッチで _crtBreakAlloc にセットする
 
