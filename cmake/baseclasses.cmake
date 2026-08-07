@@ -34,28 +34,66 @@ set(BASECLASSES_SOURCES
 )
 
 set(ORIGINAL_WXDEBUG "${SOURCE_ROOT}/external/baseclasses/wxdebug.cpp")
-set(FIXED_WXDEBUG    "${CMAKE_BINARY_DIR}/baseclasses/wxdebug.cpp")
+set(BACKUP_WXDEBUG   "${ORIGINAL_WXDEBUG}.bak")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 	list(APPEND BASECLASSES_SOURCES ${ORIGINAL_WXDEBUG})
 else()
 	if(EXISTS ${ORIGINAL_WXDEBUG})
+		if(NOT EXISTS ${BACKUP_WXDEBUG})
+			file(COPY_FILE ${ORIGINAL_WXDEBUG} ${BACKUP_WXDEBUG})
+		endif()
+
 		file(READ ${ORIGINAL_WXDEBUG} FILE_CONTENTS)
 		string(
 			REPLACE "CDisp::CDisp(pp)" "(void)CDisp(pp)" 
 			MODIFIED_CONTENTS "${FILE_CONTENTS}"
 		)
-		file(WRITE ${FIXED_WXDEBUG} "${MODIFIED_CONTENTS}")
-	endif()
-
-	if(EXISTS ${FIXED_WXDEBUG})
-		list(APPEND BASECLASSES_SOURCES ${FIXED_WXDEBUG})
+		file(WRITE ${ORIGINAL_WXDEBUG} "${MODIFIED_CONTENTS}")
+		list(APPEND BASECLASSES_SOURCES ${ORIGINAL_WXDEBUG})
 	endif()
 endif()
 
+set(ORIGINAL_TRANSIP_H "${SOURCE_ROOT}/external/baseclasses/transip.h")
+set(BACKUP_TRANSIP_H   "${ORIGINAL_TRANSIP_H}.bak")
+
+if(EXISTS ${ORIGINAL_TRANSIP_H})
+	if(NOT EXISTS ${BACKUP_TRANSIP_H})
+		file(COPY_FILE ${ORIGINAL_TRANSIP_H} ${BACKUP_TRANSIP_H})
+	endif()
+
+	file(READ ${ORIGINAL_TRANSIP_H} FILE_CONTENTS)
+	string(
+		REPLACE 
+			"__out_opt IMediaSample * CTransInPlaceFilter::Copy(IMediaSample *pSource);" 
+		    "__out_opt IMediaSample * Copy(IMediaSample *pSource);" 
+		MODIFIED_CONTENTS "${FILE_CONTENTS}"
+	)
+	file(WRITE ${ORIGINAL_TRANSIP_H} "${MODIFIED_CONTENTS}")
+endif()
+
+set(ORIGINAL_VIDEOCTL_H "${SOURCE_ROOT}/external/baseclasses/videoctl.h")
+set(BACKUP_VIDEOCTL_H   "${ORIGINAL_VIDEOCTL_H}.bak")
+
+if(EXISTS ${ORIGINAL_VIDEOCTL_H})
+	if(NOT EXISTS ${BACKUP_VIDEOCTL_H})
+		file(COPY_FILE ${ORIGINAL_VIDEOCTL_H} ${BACKUP_VIDEOCTL_H})
+	endif()
+
+	file(READ ${ORIGINAL_VIDEOCTL_H} FILE_CONTENTS)
+	string(
+		REPLACE 
+			"virtual CAggDirectDraw::~CAggDirectDraw() { };" 
+			"virtual ~CAggDirectDraw() { };" 
+		MODIFIED_CONTENTS "${FILE_CONTENTS}"
+	)
+	file(WRITE ${ORIGINAL_VIDEOCTL_H} "${MODIFIED_CONTENTS}")
+endif()
+
+
 add_library(baseclasses STATIC ${BASECLASSES_SOURCES})
 set_target_properties(baseclasses PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
 )
