@@ -20,6 +20,8 @@ namespace winfont
 
 	extern auto get_private_font_path(const fontid_t   fontid) noexcept -> std::wstring;
 	extern auto get_private_font_path(std::wstring_view alias) noexcept -> std::wstring;
+
+	extern auto get_private_fontid(std::wstring_view alias) noexcept -> fontid_t;
 }
 
 #endif

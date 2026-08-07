@@ -739,8 +739,12 @@ namespace winfont
 
 	auto unregister_private_font(const fontid_t fontid) noexcept -> void
 	{
-		uint64_t removed_index{ static_cast<uint64_t>(-1) };
+		if (fontid == 0) 
+		{
+			return;
+		}
 
+		uint64_t removed_index{ static_cast<uint64_t>(-1) };
 		if (!winfont::FONTS.empty())
 		{
 			for (size_t i = 0; i < winfont::FONTS.size(); ++i)
@@ -866,6 +870,25 @@ namespace winfont
 					if (_index < winfont::FONTS.size())
 					{
 						return winfont::FONTS[_index].path;
+					}
+					return {};
+				}
+			}
+		}
+		return {};
+	}
+
+	auto get_private_fontid(std::wstring_view alias) noexcept -> fontid_t 
+	{
+		if (!winfont::FONT_ALIAS.empty())
+		{
+			for (const auto& [_alias, _index] : winfont::FONT_ALIAS)
+			{
+				if (_alias == alias)
+				{
+					if (_index < winfont::FONTS.size())
+					{
+						return winfont::FONTS[_index].fontid;
 					}
 					return {};
 				}
