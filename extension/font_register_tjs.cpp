@@ -135,7 +135,7 @@ namespace font_register_tjs
 						alias = { _alias.c_str(), _alias.length() };
 					}
 				}
-				const std::wstring file{ localname.AsStdString() };
+				const std::wstring_view file{ localname.c_str(), localname.length() };
 				*result = static_cast<tjs_int64>(winfont::register_private_font(file, false, alias));
 				return TJS_S_OK;
 			}
@@ -189,7 +189,7 @@ namespace font_register_tjs
 							}
 						}
 
-						const std::wstring        file{ temp.AsStdString() };
+						const std::wstring_view   file{ temp.c_str(), temp.length() };
 						const winfont::fontid_t fontid{ winfont::register_private_font(file, false, alias) };
 						if (static_cast<tjs_int64>(*result) != 0) 
 						{

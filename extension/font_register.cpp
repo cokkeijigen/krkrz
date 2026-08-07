@@ -557,7 +557,7 @@ namespace winfont
 			return 0;
 		}
 
-		const std::wstring face_name{ winfont::get_font_face_name(data) };
+		std::wstring face_name{ winfont::get_font_face_name(data) };
 		if (face_name.empty()) 
 		{
 			return 0;
@@ -588,7 +588,7 @@ namespace winfont
 		winfont::entry _entry
 		{
 			.fontid = font_id,
-			.name   = face_name,
+			.name   = std::move(face_name),
 			.handle = handle,
 		};
 
@@ -601,15 +601,17 @@ namespace winfont
 		return font_id;
 	}
 
-	auto register_private_font(const std::wstring& file, bool as_memory, std::wstring_view alias) noexcept -> fontid_t
+	auto register_private_font(std::wstring_view file, bool as_memory, std::wstring_view alias) noexcept -> fontid_t
 	{
 		const auto file_hash{ winfont::strhash(file) };
 		if (!file_hash.has_value())
 		{
 			return 0;
 		}
+		
+		std::wstring font_path{ file };
+		std::wstring face_name{ winfont::get_font_face_name(font_path) };
 
-		const std::wstring face_name{ winfont::get_font_face_name(file) };
 		if (face_name.empty())
 		{
 			return 0;
@@ -637,7 +639,7 @@ namespace winfont
 		{
 			const HANDLE hFile = ::CreateFileW
 			(
-				file.c_str(),
+				font_path.c_str(),
 				GENERIC_READ,
 				FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 				nullptr,
@@ -698,8 +700,8 @@ namespace winfont
 			winfont::entry _entry
 			{
 				.fontid = font_id,
-				.path   = file,
-				.name   = face_name,
+				.path   = std::move(font_path),
+				.name   = std::move(face_name),
 				.handle = handle,
 			};
 
@@ -713,7 +715,7 @@ namespace winfont
 		}
 		else
 		{
-			const int result{ ::AddFontResourceExW(file.c_str(), FR_PRIVATE, nullptr) };
+			const int result{ ::AddFontResourceExW(font_path.c_str(), FR_PRIVATE, nullptr) };
 			if (result <= 0) 
 			{
 				return 0;
@@ -722,8 +724,8 @@ namespace winfont
 			winfont::entry _entry
 			{
 				.fontid = font_id,
-				.path   = file,
-				.name   = face_name,
+				.path   = std::move(font_path),
+				.name   = std::move(face_name),
 				.handle = nullptr
 			};
 

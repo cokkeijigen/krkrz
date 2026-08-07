@@ -9,7 +9,7 @@ namespace winfont
 {
 	using fontid_t = uint64_t;
 
-	extern auto register_private_font(const std::wstring& file, bool as_memory, std::wstring_view alias = {}) noexcept -> fontid_t;
+	extern auto register_private_font(std::wstring_view  file, bool as_memory, std::wstring_view alias = {}) noexcept -> fontid_t;
 	extern auto register_private_font(std::span<uint8_t> data, std::wstring_view alias = {}) noexcept -> fontid_t;
 	
 	extern auto unregister_private_font() noexcept -> void;
