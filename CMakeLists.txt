@@ -328,6 +328,11 @@ set(C_CXX_SOURCES
 
 )
 
+set(BUILD_INFO_CPP "${SOURCE_ROOT}/extension/build_info.cpp")
+if(EXISTS "${BUILD_INFO_CPP}" AND NOT IS_DIRECTORY "${BUILD_INFO_CPP}")
+	list(APPEND C_CXX_SOURCES ${BUILD_INFO_CPP})
+endif()
+
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
 	set(ASM_SOURCES
 		"${SOURCE_ROOT}/visual/IA32/tlg6_chroma.nas"
