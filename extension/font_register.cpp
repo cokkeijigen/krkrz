@@ -818,14 +818,15 @@ namespace winfont
 		{
 			for (const auto& [_alias, _index] : winfont::FONT_ALIAS) 
 			{
-				if (_alias == alias) 
+				if (_alias != alias) 
 				{
-					if (_index < winfont::FONTS.size()) 
-					{
-						return winfont::FONTS[_index].name;
-					}
-					return {};
+					continue;
 				}
+				if (_index < winfont::FONTS.size()) 
+				{
+					return winfont::FONTS[_index].name;
+				}
+				return {};
 			}
 		}
 		return {};
@@ -846,7 +847,7 @@ namespace winfont
 		return {};
 	}
 
-	auto get_private_font_path(const fontid_t   fontid) noexcept -> std::wstring 
+	auto get_private_font_path(const fontid_t fontid) noexcept -> std::wstring 
 	{
 		if (!winfont::FONTS.empty())
 		{
@@ -867,14 +868,15 @@ namespace winfont
 		{
 			for (const auto& [_alias, _index] : winfont::FONT_ALIAS)
 			{
-				if (_alias == alias)
+				if (_alias != alias)
 				{
-					if (_index < winfont::FONTS.size())
-					{
-						return winfont::FONTS[_index].path;
-					}
-					return {};
+					continue;
 				}
+				if (_index < winfont::FONTS.size())
+				{
+					return winfont::FONTS[_index].path;
+				}
+				return {};
 			}
 		}
 		return {};
@@ -886,14 +888,15 @@ namespace winfont
 		{
 			for (const auto& [_alias, _index] : winfont::FONT_ALIAS)
 			{
-				if (_alias == alias)
+				if (_alias != alias)
 				{
-					if (_index < winfont::FONTS.size())
-					{
-						return winfont::FONTS[_index].fontid;
-					}
-					return {};
+					continue;
 				}
+				if (_index < winfont::FONTS.size())
+				{
+					return winfont::FONTS[_index].fontid;
+				}
+				return {};
 			}
 		}
 		return {};
