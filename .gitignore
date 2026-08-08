@@ -24,3 +24,4 @@ out/
 .test/
 Debug64/
 Release64/
+extension/build_info.cpp
