@@ -11,9 +11,9 @@ namespace font_register_tjs
 	{
 		std::vector<ttstr> list{};
 
-		inline auto add(const ttstr& path) noexcept -> void
+		inline auto add(ttstr&& path) noexcept -> void
 		{
-			this->list.push_back(path);
+			this->list.push_back(std::move(path));
 		}
 
 		inline auto remove_last() noexcept -> void
@@ -35,7 +35,7 @@ namespace font_register_tjs
 
 			for (auto it = this->list.begin(); it != this->list.end(); it++)
 			{
-				std::wstring_view _path{ it->c_str(),  static_cast<size_t>(it->length()) };
+				const std::wstring_view _path{ it->c_str(), static_cast<size_t>(it->length()) };
 				if (_path == path)
 				{
 					::DeleteFileW(it->c_str());
@@ -132,10 +132,10 @@ namespace font_register_tjs
 					const ttstr _alias{ (*param[1]).AsString() };
 					if (!_alias.IsEmpty())
 					{
-						alias = { _alias.c_str(), _alias.length() };
+						alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
 					}
 				}
-				const std::wstring_view file{ localname.c_str(), localname.length() };
+				const std::wstring_view file{ localname.c_str(), static_cast<size_t>(localname.length()) };
 				*result = static_cast<tjs_int64>(winfont::register_private_font(file, false, alias));
 				return TJS_S_OK;
 			}
@@ -146,7 +146,7 @@ namespace font_register_tjs
 					IStream* const in{ ::TVPCreateIStream(filename, TJS_BS_READ) };
 					if (in != nullptr)
 					{
-						const ttstr temp{ ::TVPGetTemporaryName() };
+						ttstr temp{ ::TVPGetTemporaryName() };
 						const HANDLE hFile = ::CreateFileW
 						(
 							temp.c_str(),
@@ -185,15 +185,15 @@ namespace font_register_tjs
 							const ttstr _alias{ (*param[1]).AsString() };
 							if (!_alias.IsEmpty())
 							{
-								alias = { _alias.c_str(), _alias.length() };
+								alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
 							}
 						}
 
-						const std::wstring_view   file{ temp.c_str(), temp.length() };
+						const std::wstring_view   file{ temp.c_str(), static_cast<size_t>(temp.length())   };
 						const winfont::fontid_t fontid{ winfont::register_private_font(file, false, alias) };
 						if (static_cast<tjs_int64>(*result) != 0) 
 						{
-							font_register_tjs::temp_font_list.add(temp);
+							font_register_tjs::temp_font_list.add(std::move(temp));
 						}
 						else 
 						{
@@ -223,7 +223,7 @@ namespace font_register_tjs
 								const ttstr _alias{ *param[1]->AsString() };
 								if (!_alias.IsEmpty())
 								{
-									alias = { _alias.c_str(), _alias.length() };
+									alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
 								}
 							}
 							*result = static_cast<tjs_int64>(winfont::register_private_font(buffer, alias));
@@ -253,7 +253,7 @@ namespace font_register_tjs
 		{
 		case tvtString:
 		{
-			ttstr _alias{ (*param[0]).AsString() };
+			const ttstr _alias{ (*param[0]).AsString() };
 			if (_alias.IsEmpty())
 			{
 				*result = ttstr{};
