@@ -7,66 +7,65 @@
 
 namespace font_register_tjs
 {
-	struct fonts
+	namespace temp_fonts
 	{
-		std::vector<ttstr> list{};
+		static std::vector<ttstr> list{};
 
-		inline auto add(ttstr&& path) noexcept -> void
+		static inline auto add(ttstr&& path) noexcept -> void
 		{
-			this->list.push_back(std::move(path));
+			temp_fonts::list.push_back(std::move(path));
 		}
 
-		inline auto remove_last() noexcept -> void
+		static inline auto remove_last() noexcept -> void
 		{
-			if(this->list.empty())
+			if(temp_fonts::list.empty())
 			{
 				return;
 			}
-			::DeleteFileW(this->list.back().c_str());
-			this->list.pop_back();
+			::DeleteFileW(temp_fonts::list.back().c_str());
+			temp_fonts::list.pop_back();
 		}
 
-		inline auto remove(std::wstring_view path) noexcept -> void
+		static inline auto remove(std::wstring_view path) noexcept -> void
 		{
-			if (path.empty() || this->list.empty())
+			if (path.empty() || temp_fonts::list.empty())
 			{
 				return;
 			}
 
-			for (auto it = this->list.begin(); it != this->list.end(); it++)
+			for (auto it = temp_fonts::list.begin(); it != temp_fonts::list.end(); it++)
 			{
 				const std::wstring_view _path{ it->c_str(), static_cast<size_t>(it->length()) };
 				if (_path == path)
 				{
 					::DeleteFileW(it->c_str());
-					this->list.erase(it);
+					temp_fonts::list.erase(it);
 					return;
 				}
 			}
 		}
 
-		inline auto remove_all()  noexcept -> void
+		static inline auto remove_all()  noexcept -> void
 		{
-			if (this->list.empty())
+			if (temp_fonts::list.empty())
 			{
 				return;
 			}
 			
-			for (const ttstr& file : this->list)
+			for (const ttstr& file : temp_fonts::list)
 			{
 				::DeleteFileW(file.c_str());
 			}
-			this->list.clear();
+			temp_fonts::list.clear();
 		}
 	};
 
-	static font_register_tjs::fonts temp_font_list{};
 	[[maybe_unused]] static struct destroy
 	{
 		~destroy() noexcept
 		{
 			winfont::unregister_private_font();
-			font_register_tjs::temp_font_list.remove_all();
+			temp_fonts::remove_all();
 		}
 	}__unused__{};
 
@@ -90,7 +89,7 @@ namespace font_register_tjs
 					const std::wstring        path{ winfont::get_private_font_path(fontid)               };
 
 					winfont::unregister_private_font(fontid);
-					font_register_tjs::temp_font_list.remove(path);
+					temp_fonts::remove(path);
 				}
 				break;
 			}
@@ -100,7 +99,7 @@ namespace font_register_tjs
 				const std::wstring path{ winfont::get_private_font_path(fontid) };
 
 				winfont::unregister_private_font(winfont::fontid_t(fontid));
-				font_register_tjs::temp_font_list.remove(path);
+				temp_fonts::remove(path);
 				break;
 			}
 			};
@@ -108,7 +107,7 @@ namespace font_register_tjs
 		else
 		{
 			winfont::unregister_private_font();
-			font_register_tjs::temp_font_list.remove_all();
+			temp_fonts::remove_all();
 		}
 		return TJS_S_OK;
 	}
@@ -199,7 +198,7 @@ namespace font_register_tjs
 						const winfont::fontid_t fontid{ winfont::register_private_font(file, false, alias) };
 						if (static_cast<tjs_int64>(*result) != 0) 
 						{
-							font_register_tjs::temp_font_list.add(std::move(temp));
+							temp_fonts::add(std::move(temp));
 						}
 						else 
 						{
