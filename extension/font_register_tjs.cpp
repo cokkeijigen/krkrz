@@ -58,11 +58,17 @@ namespace font_register_tjs
 			}
 			this->list.clear();
 		}
-
-		~fonts() noexcept { this->remove_all(); }
 	};
 
 	static font_register_tjs::fonts temp_font_list{};
+	[[maybe_unused]] static struct destroy
+	{
+		~destroy() noexcept
+		{
+			winfont::unregister_private_font();
+			font_register_tjs::temp_font_list.remove_all();
+		}
+	}__unused__{};
 
 	/**
 	 * @param  fontid / alias
