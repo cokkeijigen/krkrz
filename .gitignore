@@ -25,4 +25,5 @@ out/
 Debug64/
 Release64/
 extension/build_info.cpp
+extension/steamapi/sdk
 !YY_Thunks_for_Win2K.obj
