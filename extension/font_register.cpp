@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 #include <iostream>
+#include <limits>
 
 #ifdef min
 #undef min
@@ -165,45 +166,19 @@ namespace winfont
 		const uint8_t*   name_base{ name_table_data.data() };
 		const uint32_t name_length{ static_cast<uint32_t>(name_table_data.size()) };
 
-		const uint16_t  record_count{ read_u16_be(name_base + 2) };
-		const uint16_t string_offset{ read_u16_be(name_base + 4) };
-		if (name_length < 6u + static_cast<size_t>(record_count) * 12u) 
+		const uint16_t  record_count{ winfont::read_u16_be(name_base + 2) };
+		const uint16_t string_offset{ winfont::read_u16_be(name_base + 4) };
+		if (name_length < 6u + static_cast<size_t>(record_count) * 12u)
 		{
 			return {};
 		}
 
-		constexpr int NAME_ID_FULL_FONT_NAME     =  4;
-		constexpr int NAME_ID_POSTSCRIPT_NAME    =  6;
-		constexpr int NAME_ID_TYPOGRAPHIC_FAMILY = 16;
-		constexpr int NAME_ID_FONT_FAMILY        =  1;
-
-		struct candidate_t
+		enum : int
 		{
-			std::wstring name;
-			int score, name_priority, order;
-		};
-
-		std::vector<candidate_t> candidates{};
-		candidates.reserve(16);
-
-		constexpr int NAME_ID_WEIGHT[4]{ 100000, 80000, 60000, 10000 };
-		auto name_id_to_priority
-		{ 
-			[](int nid) noexcept -> int 
-			{
-				switch (nid)
-				{
-				case NAME_ID_FULL_FONT_NAME:     return 0;
-				case NAME_ID_TYPOGRAPHIC_FAMILY: return 1;
-				case NAME_ID_FONT_FAMILY:        return 2;
-				case NAME_ID_POSTSCRIPT_NAME:    return 3;
-				default: return -1;
-				}
-			} 
-		};
-		
-		enum 
-		{
+		    NAME_ID_FONT_FAMILY               = 1,
+		    NAME_ID_FULL_FONT_NAME            = 4,
+		    NAME_ID_POSTSCRIPT_NAME           = 6,
+		    NAME_ID_TYPOGRAPHIC_FAMILY        = 16,
 			STBTT_MAC_LANG_ENGLISH            = 0,
 			STBTT_MAC_EID_ROMAN               = 0,
 			STBTT_PLATFORM_ID_UNICODE         = 0,
@@ -217,21 +192,38 @@ namespace winfont
 			STBTT_MS_LANG_JAPANESE            = 0x0411,
 			STBTT_MS_LANG_KOREAN              = 0x0412,
 		};
+		
+		constexpr int NAME_ID_WEIGHT[4]{ 100000, 80000, 60000, 10000 };
+		const auto name_id_to_priority
+		{
+			[](int nid) static noexcept -> int
+			{
+				switch (nid)
+				{
+				case NAME_ID_FULL_FONT_NAME:     return 0;
+				case NAME_ID_TYPOGRAPHIC_FAMILY: return 1;
+				case NAME_ID_FONT_FAMILY:        return 2;
+				case NAME_ID_POSTSCRIPT_NAME:    return 3;
+				default: return -1;
+				}
+			}
+		};
 
-		int order{ 0 };
-		std::wstring first_nonempty{};
+		std::wstring best_name{}, first_nonempty{};
+		int best_score{ -1 }, best_priority{ std::numeric_limits<std::int32_t>::max() };
+		
 		for (uint16_t i{ 0 }; i < record_count; ++i)
 		{
-			const uint8_t* rec{ name_base + 6 + i * 12 };
-			const int pid{ static_cast<int>(winfont::read_u16_be(rec)) };
-			const int eid{ static_cast<int>(winfont::read_u16_be(rec + 2)) };
-			const int lid{ static_cast<int>(winfont::read_u16_be(rec + 4)) };
-			const int nid{ static_cast<int>(winfont::read_u16_be(rec + 6)) };
-			const uint16_t len{ winfont::read_u16_be(rec +  8) };
+			const uint8_t* rec{ name_base + 6 + i * 12        };
+			const uint16_t len{ winfont::read_u16_be(rec + 8) };
 			const uint16_t off{ winfont::read_u16_be(rec + 10) };
+			const auto pid{ static_cast<int>(winfont::read_u16_be(rec)) };
+			const auto eid{ static_cast<int>(winfont::read_u16_be(rec + 2)) };
+			const auto lid{ static_cast<int>(winfont::read_u16_be(rec + 4)) };
+			const auto nid{ static_cast<int>(winfont::read_u16_be(rec + 6)) };
 
 			const int priority{ name_id_to_priority(nid) };
-			if (priority < 0) 
+			if (priority < 0)
 			{
 				continue;
 			}
@@ -241,8 +233,7 @@ namespace winfont
 			{
 				if (eid == STBTT_MS_EID_UNICODE_BMP || eid == STBTT_MS_EID_UNICODE_FULL)
 				{
-					if (
-						lid == STBTT_MS_LANG_ENGLISH  || lid == STBTT_MS_LANG_CHINESE ||
+					if (lid == STBTT_MS_LANG_ENGLISH || lid == STBTT_MS_LANG_CHINESE ||
 						lid == STBTT_MS_LANG_JAPANESE || lid == STBTT_MS_LANG_KOREAN)
 					{
 						match = true;
@@ -263,34 +254,33 @@ namespace winfont
 					match = true;
 				}
 			}
-			
-			if (!match) 
+
+			if (!match)
 			{
 				continue;
 			}
 
 			const size_t str_start{ static_cast<size_t>(string_offset) + off };
-			if (str_start + len > name_length) 
-			{ 
-				continue; 
+			if (str_start + len > name_length)
+			{
+				continue;
 			}
 
-			const char* str{ reinterpret_cast<const char*>(name_base + str_start) };
-
 			std::wstring decoded{};
+			const auto str{ reinterpret_cast<const char*>(name_base + str_start) };
 			if (pid == STBTT_PLATFORM_ID_MICROSOFT || pid == STBTT_PLATFORM_ID_UNICODE)
 			{
-				const int char_count{ static_cast<int>(len / 2) };
+				const auto char_count{ static_cast<int>(len / 2) };
 				decoded.reserve(char_count);
 
 				for (int j{ 0 }; j < char_count; ++j)
 				{
-					const uint8_t*  q{ reinterpret_cast<const uint8_t*>(str) + j * 2 };
+					const uint8_t* q{ reinterpret_cast<const uint8_t*>(str) + j * 2 };
 					const auto ch
-					{ 
+					{
 						(static_cast<uint16_t>(q[0]) << 8) | static_cast<uint16_t>(q[1])
 					};
-					if (ch == 0) 
+					if (ch == 0)
 					{
 						break;
 					}
@@ -302,87 +292,80 @@ namespace winfont
 				decoded.reserve(len);
 				for (uint16_t j{ 0 }; j < len; ++j)
 				{
-					if (str[j] == 0) 
+					if (str[j] == 0)
 					{
-						break; 
+						break;
 					}
-					decoded.push_back(static_cast<wchar_t>(static_cast<uint8_t>(str[j])));
+					decoded.push_back(static_cast<wchar_t>(str[j]));
 				}
 			}
 
-			if (decoded.empty()) 
+			if (decoded.empty())
 			{
-				continue; 
+				continue;
 			}
 
 			bool ok{ true };
 			for (wchar_t ch : decoded)
 			{
-				if (ch < 0x0020 && ch != 0x09 && ch != 0x0A && ch != 0x0D) 
-				{ 
-					ok = false; 
-					break; 
+				if (ch < 0x0020 && ch != 0x09 && ch != 0x0A && ch != 0x0D)
+				{
+					ok = false;
+					break;
 				}
-				if (ch == 0x007F) 
-				{ 
-					ok = false; 
-					break; 
+				if (ch == 0x007F)
+				{
+					ok = false;
+					break;
 				}
 				if (ch >= 0xD800 && ch <= 0xDFFF)
-				{ 
-					ok = false; 
-					break; 
+				{
+					ok = false;
+					break;
 				}
 			}
-			if (!ok) 
+			if (!ok)
 			{
 				continue;
 			}
 
-			if (first_nonempty.empty()) 
-			{ 
+			if (first_nonempty.empty())
+			{
 				first_nonempty = decoded;
 			}
 
-			const int    name_weight{ NAME_ID_WEIGHT[priority]    };
-			const int        quality{ score_name_quality(decoded) };
+			const int    name_weight{ NAME_ID_WEIGHT[priority]                      };
+			const int        quality{ winfont::score_name_quality(decoded)          };
 			const int platform_bonus{ (pid == STBTT_PLATFORM_ID_MICROSOFT) ? 50 : 0 };
+			const int  current_score{ name_weight + quality + platform_bonus        };
 			
-			candidates.push_back
-			(
-				candidate_t
+			bool is_better{ false };
+			if (current_score > best_score)
+			{
+				is_better = true;
+			}
+			else if (current_score == best_score)
+			{
+				if (priority < best_priority)
 				{
-					.name          = std::move(decoded),
-					.score         = name_weight + quality + platform_bonus,
-					.name_priority = priority,
-					.order         = order++
-
+					is_better = true;
 				}
-			);
+			}
+
+			if (is_better)
+			{
+				best_name     = std::move(decoded);
+				best_score    = current_score;
+				best_priority = priority;
+			}
 		}
 
-		if (candidates.empty()) 
+		if (best_name.empty())
 		{
 			return first_nonempty;
 		}
 
-		std::stable_sort
-		(
-			candidates.begin(), candidates.end(),
-			[](const candidate_t& a, const candidate_t& b)
-			{
-				if (a.score != b.score) 
-				{
-					return a.score > b.score;
-				}
-				if (a.name_priority != b.name_priority)
-				{ 
-					return a.name_priority < b.name_priority;
-				}
-				return a.order < b.order;
-			}
-		);
-		return std::move(candidates.front().name);
+		return std::move(best_name);
 	}
 
 	static auto get_font_face_name(std::span<uint8_t> data) -> std::wstring
