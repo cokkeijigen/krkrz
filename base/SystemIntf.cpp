@@ -78,7 +78,7 @@ void TVPFireOnApplicationActivateEvent(bool activate_or_deactivate)
 //---------------------------------------------------------------------------
 
 
-#include <font_register_tjs.hpp>
+#include <extension_tjs.hpp>
 
 //---------------------------------------------------------------------------
 // tTJSNC_System
@@ -100,29 +100,49 @@ TJS_END_NATIVE_CONSTRUCTOR_DECL(/*TJS class name*/System)
 
 //-- methods
 
+/*[from extension_tjs]========================================================================*/
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/getLanguage)
+{
+	return language_tjs::get_language(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/getLanguage)
 
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/registerPrivateFont)
 {
-	return font_register_tjs::registerPrivateFont(result, numparams, param, objthis);
+	return font_register_tjs::register_private_font(result, numparams, param, objthis);
 }
 TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/registerPrivateFont)
 
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/unregisterPrivateFont)
 {
-	return font_register_tjs::unregisterPrivateFont(result, numparams, param, objthis);
+	return font_register_tjs::unregister_private_font(result, numparams, param, objthis);
 }
 TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/unregisterPrivateFont)
 
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/getPrivateFontName)
 {
-	return font_register_tjs::getPrivateFontName(result, numparams, param, objthis);
+	return font_register_tjs::get_private_font_name(result, numparams, param, objthis);
 }
 TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/getPrivateFontName)
 
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/initAchievementSystem)
+{
+	return achievement_tjs::init_achievement_system(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/initAchievementSystem)
 
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/setAchievement)
+{
+	return achievement_tjs::set_achievement(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/setAchievement)
+/*[end extension_tjs]=========================================================================*/
 
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/terminate)
