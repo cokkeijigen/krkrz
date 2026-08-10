@@ -116,6 +116,9 @@ endif()
 set(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 include("${SOURCE_ROOT}/cmake/external.cmake")
 
+set(STEAMAPI_DIR "${SOURCE_ROOT}/extension/steamapi")
+include("${STEAMAPI_DIR}/steamapi.cmake")
+
 set(C_CXX_SOURCES
 
 	"${SOURCE_ROOT}/base/BinaryStream.cpp"
@@ -325,31 +328,12 @@ set(C_CXX_SOURCES
 
 	"${SOURCE_ROOT}/extension/font_register.cpp"
 	"${SOURCE_ROOT}/extension/font_register_tjs.cpp"
+	"${SOURCE_ROOT}/extension/language_tjs.cpp"
+	"${SOURCE_ROOT}/extension/achievement_tjs.cpp"
 
 )
 
-set(BUILD_INFO_CPP "${SOURCE_ROOT}/extension/build_info.cpp")
-if(EXISTS "${BUILD_INFO_CPP}" AND NOT IS_DIRECTORY "${BUILD_INFO_CPP}")
-	list(APPEND C_CXX_SOURCES ${BUILD_INFO_CPP})
-endif()
-
-if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-	set(ASM_SOURCES
-		"${SOURCE_ROOT}/visual/IA32/tlg6_chroma.nas"
-		"${SOURCE_ROOT}/visual/IA32/tlg6_golomb.nas"	
-	)
-	set_source_files_properties(${ASM_SOURCES} 
-		PROPERTIES LANGUAGE ASM_NASM
-	)
-endif()
-
-add_executable(KRKRZ WIN32 
-	"${SOURCE_ROOT}/vcproj/tvpwin32.rc"
-	${C_CXX_SOURCES} ${ASM_SOURCES}
-)
-
-target_include_directories(KRKRZ PRIVATE
-    
+set(KRKRZ_INCLUDE_DIRECTORIES
 	"${SOURCE_ROOT}/vcproj"
 	
 	"${SOURCE_ROOT}/base/"
@@ -381,10 +365,11 @@ target_include_directories(KRKRZ PRIVATE
 	"${SOURCE_ROOT}/external/onig/src"
 	"${SOURCE_ROOT}/external/jxrlib/image/sys"
     "${SOURCE_ROOT}/external/jxrlib/jxrgluelib"
+	
 )
 
-target_compile_definitions(KRKRZ PRIVATE
-    "__WIN32__"
+set(KRKRZ_DEFINITIONS
+	"__WIN32__"
 	"__CODEGUARD__"
 	"_UNICODE" "UNICODE" 
 	"_CRT_SECURE_NO_WARNING"
@@ -400,8 +385,7 @@ target_compile_definitions(KRKRZ PRIVATE
 	"__CONSOLE_ENABLED__"
 )
 
-target_link_libraries(KRKRZ PRIVATE 
-	
+set(KRKRZ_LIBRARIES
 	zlib
 	onig
     libpng
@@ -415,6 +399,58 @@ target_link_libraries(KRKRZ PRIVATE
 	"version.lib"
 )
 
-set_target_properties(KRKRZ
-	PROPERTIES OUTPUT_NAME ${TARGET_NAME}
+set(BUILD_INFO_CPP "${SOURCE_ROOT}/extension/build_info.cpp")
+if(EXISTS "${BUILD_INFO_CPP}" AND NOT IS_DIRECTORY "${BUILD_INFO_CPP}")
+	list(APPEND C_CXX_SOURCES ${BUILD_INFO_CPP})
+endif()
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+	set(ASM_SOURCES
+		"${SOURCE_ROOT}/visual/IA32/tlg6_chroma.nas"
+		"${SOURCE_ROOT}/visual/IA32/tlg6_golomb.nas"	
+	)
+	set_source_files_properties(${ASM_SOURCES} 
+		PROPERTIES LANGUAGE ASM_NASM
+	)
+endif()
+
+add_executable(KRKRZ WIN32 
+	"${SOURCE_ROOT}/vcproj/tvpwin32.rc"
+	${C_CXX_SOURCES} ${ASM_SOURCES}
 )
+target_include_directories(KRKRZ PRIVATE
+	${KRKRZ_INCLUDE_DIRECTORIES}
+)
+target_compile_definitions(KRKRZ PRIVATE
+	${KRKRZ_DEFINITIONS}
+)
+
+target_link_libraries(KRKRZ PRIVATE 
+	${KRKRZ_LIBRARIES}
+)
+set_target_properties(KRKRZ PROPERTIES 
+	OUTPUT_NAME ${TARGET_NAME}
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${TARGET_NAME}"
+)
+
+add_executable(KRKRZ_STEAM WIN32 
+	"${SOURCE_ROOT}/vcproj/tvpwin32.rc"
+	${C_CXX_SOURCES} ${ASM_SOURCES}
+)
+target_include_directories(KRKRZ_STEAM PRIVATE
+	${KRKRZ_INCLUDE_DIRECTORIES}
+)
+target_compile_definitions(KRKRZ_STEAM PRIVATE
+	${KRKRZ_DEFINITIONS}
+	"__HAS_STEAM_API__"
+)
+target_link_libraries(KRKRZ_STEAM PRIVATE 
+	${KRKRZ_LIBRARIES}
+	steam_api
+)
+set(KRKRZ_STEAM_OUTPUT "${CMAKE_BINARY_DIR}/${TARGET_NAME}_Steam")
+set_target_properties(KRKRZ_STEAM PROPERTIES
+	OUTPUT_NAME "${TARGET_NAME}_Steam"
+	RUNTIME_OUTPUT_DIRECTORY ${KRKRZ_STEAM_OUTPUT}
+)
+TARGET_COPY_STEAM_API_DLL(KRKRZ_STEAM ${KRKRZ_STEAM_OUTPUT})
