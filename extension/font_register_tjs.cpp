@@ -1,9 +1,6 @@
 #include <iostream>
-#include <tjs.h>
-#include <objidl.h>
-#include <StorageImpl.h>
 #include <font_register.hpp>
-#include <font_register_tjs.hpp>
+#include <extension_tjs.hpp>
 
 namespace font_register_tjs
 {
@@ -73,7 +70,7 @@ namespace font_register_tjs
 	 * @param  fontid / alias
 	 * @return void
 	 */
-	auto TJS_INTF_METHOD unregisterPrivateFont(tTJSVariant*, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
+	auto TJS_INTF_METHOD unregister_private_font(tTJSVariant*, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
 	{
 		if (numparams >= 1)
 		{
@@ -81,13 +78,11 @@ namespace font_register_tjs
 			{
 			case tvtString:
 			{
-				const ttstr _alias{ (*param[0]).AsString() };
-				if (!_alias.IsEmpty())
+				const std::wstring_view alias{ param[0]->GetString() };
+				if (!alias.empty())
 				{
-					const std::wstring_view  alias{ _alias.c_str(), static_cast<size_t>(_alias.length()) };
-					const winfont::fontid_t fontid{ winfont::get_private_fontid(alias)                   };
-					const std::wstring        path{ winfont::get_private_font_path(fontid)               };
-
+					const winfont::fontid_t fontid{ winfont::get_private_fontid(alias)     };
+					const std::wstring        path{ winfont::get_private_font_path(fontid) };
 					winfont::unregister_private_font(fontid);
 					temp_fonts::remove(path);
 				}
@@ -118,7 +113,7 @@ namespace font_register_tjs
 	 * @param  extract
 	 * @return fontid
 	 */
-	auto TJS_INTF_METHOD registerPrivateFont(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
+	auto TJS_INTF_METHOD register_private_font(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
 	{
 		if (numparams < 1)
 		{
@@ -134,11 +129,7 @@ namespace font_register_tjs
 				std::wstring_view alias{};
 				if (numparams >= 2 && param[1]->Type() == tvtString)
 				{
-					const ttstr _alias{ (*param[1]).AsString() };
-					if (!_alias.IsEmpty())
-					{
-						alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
-					}
+					alias = param[1]->GetString();
 				}
 				const std::wstring_view file{ localname.c_str(), static_cast<size_t>(localname.length()) };
 				*result = static_cast<tjs_int64>(winfont::register_private_font(file, false, alias));
@@ -187,11 +178,7 @@ namespace font_register_tjs
 						std::wstring_view alias{};
 						if (param[1]->Type() == tvtString) 
 						{
-							const ttstr _alias{ (*param[1]).AsString() };
-							if (!_alias.IsEmpty())
-							{
-								alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
-							}
+							alias = param[1]->GetString();
 						}
 
 						const std::wstring_view   file{ temp.c_str(), static_cast<size_t>(temp.length())   };
@@ -225,11 +212,7 @@ namespace font_register_tjs
 							std::wstring_view alias{};
 							if (numparams >= 2 && param[1]->Type() == tvtString)
 							{
-								const ttstr _alias{ *param[1]->AsString() };
-								if (!_alias.IsEmpty())
-								{
-									alias = { _alias.c_str(), static_cast<size_t>(_alias.length()) };
-								}
+								alias = param[1]->GetString();
 							}
 							*result = static_cast<tjs_int64>(winfont::register_private_font(buffer, alias));
 							return TJS_S_OK;
@@ -247,7 +230,7 @@ namespace font_register_tjs
 	 * @param  fontid / alias
 	 * @return String
 	 */
-	auto TJS_INTF_METHOD getPrivateFontName(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
+	auto TJS_INTF_METHOD get_private_font_name(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
 	{
 		if (numparams < 1)
 		{
@@ -258,15 +241,14 @@ namespace font_register_tjs
 		{
 		case tvtString:
 		{
-			const ttstr _alias{ (*param[0]).AsString() };
-			if (_alias.IsEmpty())
+			const std::wstring_view alias{ param[0]->GetString() };
+			if (alias.empty())
 			{
 				*result = ttstr{};
 			}
 			else
 			{
-				const std::wstring_view alias{ _alias.c_str(), static_cast<size_t>(_alias.length()) };
-				const std::wstring       name{ winfont::get_private_font_name(alias) };
+				const std::wstring name{ winfont::get_private_font_name(alias) };
 				if (name.empty())
 				{
 					*result = ttstr{};
