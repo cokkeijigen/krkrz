@@ -84,31 +84,14 @@ namespace achievement_tjs
 		return false;
 	}
 
-	static std::unique_ptr<achievement_helper> helper{};
+	static achievement_tjs::achievement_helper helper{};
 
-	static auto init_achievement_system() noexcept -> bool 
-	{
-		if (helper.get() == nullptr) 
-		{
-			helper = std::make_unique<achievement_helper>();
-		}
-		return helper->init();
-	}
-
-	static auto set_achievement(const char* id) noexcept -> bool 
-	{
-		if (helper.get() == nullptr) 
-		{
-			return false;
-		}
-		return helper->set_achievement(id);
-	}
 	#endif
 
 	auto TJS_INTF_METHOD init_achievement_system(tTJSVariant* result, tjs_int, tTJSVariant**, iTJSDispatch2*) noexcept -> tjs_error
 	{
 		#ifdef __HAS_STEAM_API__
-			*result = achievement_tjs::init_achievement_system();
+			*result = achievement_tjs::helper.init();
 		#else
 			*result = false;
 		#endif
@@ -143,7 +126,8 @@ namespace achievement_tjs
 					}
 					_name.push_back(static_cast<char>(chr));
 				}
-				*result = achievement_tjs::set_achievement(_name.c_str());
+				
+				*result = achievement_tjs::helper.set_achievement(_name.c_str());
 			}
 			else 
 			{
