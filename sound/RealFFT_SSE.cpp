@@ -54,8 +54,9 @@ static inline void cft1st(int n, float * __restrict a, float * __restrict w)
 
 	__m128	XMM0, XMM1, XMM2, XMM3, XMM4, XMM5;
 //#pragma warning(disable : 592)
-	XMM0	 = _mm_loadl_pi(XMM0, (__m64*)(a   ));
-	XMM2	 = _mm_loadl_pi(XMM2, (__m64*)(a+ 2));
+	// 未初期化の dst を渡さない (/RTC1 対策)。上位は直後に loadh_pi で上書きされる。
+	XMM0	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a   ));
+	XMM2	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+ 2));
 //#pragma warning(default : 592)
 	XMM0	 = _mm_loadh_pi(XMM0, (__m64*)(a+ 4));
 	XMM2	 = _mm_loadh_pi(XMM2, (__m64*)(a+ 6));
@@ -110,8 +111,9 @@ static inline void cft1st(int n, float * __restrict a, float * __restrict w)
 		k1		+= 2;
 		k2		 = 2 * k1;
 //#pragma warning(disable : 592)
-		XMM4	 = _mm_loadh_pi(XMM4, (__m64*)(w+k1	 ));
-		XMM5	 = _mm_loadl_pi(XMM5, (__m64*)(w+k2	 ));
+		// 未初期化の dst を渡さない (/RTC1 対策)
+		XMM4	 = _mm_loadh_pi(_mm_setzero_ps(), (__m64*)(w+k1	 ));
+		XMM5	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(w+k2	 ));
 //#pragma warning(default : 592)
 		XMM0	 = XMM5;
 		XMM1	 = XMM4;
@@ -515,10 +517,13 @@ static inline void bitrv2(int n, int * __restrict ip, float * __restrict a)
 				j1 = 2 * j + ip[k];
 				k1 = 2 * k + ip[j];
 //#pragma warning(disable : 592)
-				X0	 = _mm_loadl_pi(X0, (__m64*)(a+j1	  ));
-				Y0	 = _mm_loadl_pi(Y0, (__m64*)(a+k1	  ));
-				X1	 = _mm_loadl_pi(X1, (__m64*)(a+j1+m2*2));
-				Y1	 = _mm_loadl_pi(Y1, (__m64*)(a+k1+m2  ));
+				// 第 1 引数 (dst) は未初期化で渡さない (/RTC1 対策)。
+				// loadh_pi で上位が直後に上書きされるため演算結果には影響しないが、
+				// 初期化しておかないと Debug 実行時に Run-Time Check Failure #3 が出る。
+				X0	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+j1	  ));
+				Y0	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+k1	  ));
+				X1	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+j1+m2*2));
+				Y1	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+k1+m2  ));
 //#pragma warning(default : 592)
 				X0	 = _mm_loadh_pi(X0, (__m64*)(a+j1+m2  ));
 				Y0	 = _mm_loadh_pi(Y0, (__m64*)(a+k1+m2*2));
@@ -551,8 +556,9 @@ static inline void bitrv2(int n, int * __restrict ip, float * __restrict a)
 				j1 = 2 * j + ip[k];
 				k1 = 2 * k + ip[j];
 //#pragma warning(disable : 592)
-				X	 = _mm_loadl_pi(X, (__m64*)(a+j1   ));
-				Y	 = _mm_loadl_pi(Y, (__m64*)(a+k1   ));
+				// bitrv2 内と同様、未初期化の dst を渡さない (/RTC1 対策)。
+				X	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+j1   ));
+				Y	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+k1   ));
 //#pragma warning(default : 592)
 				X	 = _mm_loadh_pi(X, (__m64*)(a+j1+m2));
 				Y	 = _mm_loadh_pi(Y, (__m64*)(a+k1+m2));
@@ -688,7 +694,8 @@ static inline void rftfsub(int n, float * __restrict a, int nc, float * __restri
 		XMM0	 = _mm_load_ss(PFV_0P5);
 		XMM1	 = _mm_load_ss(c+kk	  );
 //#pragma warning(disable : 592)
-		XMM6	 = _mm_loadl_pi(XMM6, (__m64*)(a+k+2));
+		// 未初期化の dst を渡さない (/RTC1 対策)
+		XMM6	 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+k+2));
 //#pragma warning(default : 592)
 		XMM2	 = XMM0;
 		XMM3	 = _mm_load_ss(c+kk+ks);
@@ -745,9 +752,10 @@ static inline void cftbsub(int n, float * __restrict a, float * __restrict w)
 
 			__m128 j2j0, j3j1, x1x0, x3x2;
 
-			j2j0 = _mm_loadl_pi(j2j0, (__m64*)(a+j	));
+			// 未初期化の dst を渡さない (/RTC1 対策)。上位は直後に loadh_pi で上書きされる。
+			j2j0 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+j	));
 			j2j0 = _mm_loadh_pi(j2j0, (__m64*)(a+j2 ));
-			j3j1 = _mm_loadl_pi(j3j1, (__m64*)(a+j1 ));
+			j3j1 = _mm_loadl_pi(_mm_setzero_ps(), (__m64*)(a+j1 ));
 			j3j1 = _mm_loadh_pi(j3j1, (__m64*)(a+j3 ));
 
 			x1x0 = _mm_add_ps(
