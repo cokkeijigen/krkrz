@@ -51,6 +51,8 @@ tTVPSystemControl::tTVPSystemControl() : EventEnable(true) {
 	ContinuousEventCalling = false;
 	AutoShowConsoleOnError = false;
 
+	DeliveringEvents = false;
+
 	LastCompactedTick = 0;
 	LastCloseClickedTick = 0;
 	LastShowModalWindowSentTick = 0;
@@ -112,10 +114,24 @@ bool tTVPSystemControl::ApplicationIdle() {
 }
 
 void tTVPSystemControl::DeliverEvents() {
-	if(ContinuousEventCalling)
-		TVPProcessContinuousHandlerEventFlag = true; // set flag
+	// WM_TIMER はメッセージ ポンプ中 (同期読み込みやモーダル表示など) に再入
+	// しうる。イベントの二重配信を禁止してスクリプト例外を防ぐ。
+	if( DeliveringEvents ) return;
+	DeliveringEvents = true;
 
-	if(EventEnable) TVPDeliverAllEvents();
+	try
+	{
+		if(ContinuousEventCalling)
+			TVPProcessContinuousHandlerEventFlag = true; // set flag
+
+		if(EventEnable) TVPDeliverAllEvents();
+	}
+	catch(...)
+	{
+		DeliveringEvents = false;
+		throw;
+	}
+	DeliveringEvents = false;
 }
 
 void tTVPSystemControl::SystemWatchTimerTimer() {

@@ -42,6 +42,10 @@ private:
 
 	void InvalidateAll();
 
+	// Steam オーバーレイ対応: Texture の内容をバックバッファへ再転送する。
+	// (Show() で「ゲームが再描画していないフレーム」を強制 Present する直前に使う)
+	void RedrawBackBufferFromTexture();
+
 	UINT GetMonitorNumber( HWND window );
 
 	bool IsTargetWindowActive() const;

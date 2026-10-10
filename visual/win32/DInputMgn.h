@@ -99,6 +99,14 @@ class tTVPDirectInputDevice
 protected:
 	IDirectInputDevice2 * Device;
 
+	// CreateDevice の戻り値 (Steam オーバーレイの IWrapMouseDevice7 ラッパー)。
+	// これを保持せず QI で得た内部デバイスだけ解放すると、ラッパー解放時に
+	// オーバーレイ内部のグローバルが不正ポインタになり Shift+Tab で落ちる。
+	IDirectInputDevice * WrapDevice;
+
+	void ReleaseDevice();
+		// Device と WrapDevice をまとめて解放する (順序は DInputMgn.cpp 参照)。
+
 public:
 	tTVPDirectInputDevice();
 

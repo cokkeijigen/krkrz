@@ -72,7 +72,7 @@ namespace font_register_tjs
 	 */
 	auto TJS_INTF_METHOD unregister_private_font(tTJSVariant*, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*) noexcept -> tjs_error
 	{
-		if (numparams >= 1)
+		if (numparams >= 1 && param != nullptr)
 		{
 			switch (param[0]->Type())
 			{
@@ -171,7 +171,10 @@ namespace font_register_tjs
 						else
 						{
 							in->Release();
-							*result = static_cast<tjs_int64>(0);
+							if (result != nullptr) 
+							{
+								*result = static_cast<tjs_int64>(0);
+							}
 							return TJS_S_OK;
 						}
 						
@@ -191,7 +194,10 @@ namespace font_register_tjs
 						{
 							::DeleteFileW(temp.c_str());
 						}
-						*result = static_cast<tjs_int64>(fontid);
+						if (result != nullptr) 
+						{
+							*result = static_cast<tjs_int64>(fontid);
+						}
 						return TJS_S_OK;
 					}
 				}
@@ -214,7 +220,10 @@ namespace font_register_tjs
 							{
 								alias = param[1]->GetString();
 							}
-							*result = static_cast<tjs_int64>(winfont::register_private_font(buffer, alias));
+							if (result != nullptr) 
+							{
+								*result = static_cast<tjs_int64>(winfont::register_private_font(buffer, alias));
+							}
 							return TJS_S_OK;
 						}
 					}
@@ -222,7 +231,10 @@ namespace font_register_tjs
 			}
 		}
 
-		*result = static_cast<tjs_int64>(0);
+		if (result != nullptr) 
+		{
+			*result = static_cast<tjs_int64>(0);
+		}
 		return TJS_S_OK;
 	}
 
@@ -244,18 +256,27 @@ namespace font_register_tjs
 			const std::wstring_view alias{ param[0]->GetString() };
 			if (alias.empty())
 			{
-				*result = ttstr{};
+				if (result != nullptr) 
+				{
+					*result = ttstr{};
+				}
 			}
 			else
 			{
 				const std::wstring name{ winfont::get_private_font_name(alias) };
 				if (name.empty())
 				{
-					*result = ttstr{};
+					if (result != nullptr)
+					{
+						*result = ttstr{};
+					}
 				}
 				else
 				{
-					*result = ttstr{ name.c_str(), static_cast<int>(name.size()) };
+					if (result != nullptr) 
+					{
+						*result = ttstr{ name.c_str(), static_cast<int>(name.size()) };
+					}
 				}
 			}
 			break;
@@ -266,17 +287,26 @@ namespace font_register_tjs
 			const std::wstring name{ winfont::get_private_font_name(value) };
 			if (name.empty())
 			{
-				*result = ttstr{};
+				if (result != nullptr)
+				{
+					*result = ttstr{};
+				}
 			}
 			else
 			{
-				*result = ttstr{ name.c_str(), static_cast<int>(name.size()) };
+				if (result != nullptr)
+				{
+					*result = ttstr{ name.c_str(), static_cast<int>(name.size()) };
+				}
 			}
 			break;
 		}
 		default:
 		{
-			*result = ttstr{};
+			if (result != nullptr) 
+			{
+				*result = ttstr{};
+			}
 			break;
 		}
 		}

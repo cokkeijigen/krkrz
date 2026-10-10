@@ -141,7 +141,10 @@ tTVPUniqueTagForInputEvent tTVPOnDisplayRotateInputEvent      ::Tag;
 //---------------------------------------------------------------------------
 tTJSNI_BaseWindow::tTJSNI_BaseWindow()
 {
-	WaitVSync = false;
+	// vsync 待ちの既定を true にする (VSyncTimingThread が毎フレーム Show() を
+	// 駆動する。 false だと静止画で Present が止まり Steam オーバーレイが固まる)。
+	// ゲーム側で Window.waitVSync を設定すれば上書きできる。
+	WaitVSync = true;
 	ObjectVectorLocked = false;
 	DrawBuffer = NULL;
 	WindowExposedRegion.clear();

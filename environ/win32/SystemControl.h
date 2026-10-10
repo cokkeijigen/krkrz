@@ -22,6 +22,8 @@ private:	// ユーザー宣言
 
 	bool EventEnable;
 
+	bool DeliveringEvents; // 再入防止 ( WM_TIMER はメッセージポンプ中に再入しうる )
+
 	DWORD LastCompactedTick;
 	DWORD LastCloseClickedTick;
 	DWORD LastShowModalWindowSentTick;

@@ -58,11 +58,9 @@ LRESULT WINAPI TVPTimer::WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	return ::DefWindowProc(hWnd,msg,wParam,lParam);
 }
 void TVPTimer::UpdateTimer() {
-	if( ::KillTimer( window_handle_, 1 ) == 0 ) {
-#ifdef _DEBUG
-		TVP_WINDOWS_ERROR_LOG;
-#endif
-	}
+	// KillTimer はタイマー未設定でも 0 を返す (正常動作)。 _DEBUG での
+	// エラーログは誤報になるため出さない。
+	::KillTimer( window_handle_, 1 );
 	if( interval_ > 0 && enabled_ && event_ != NULL ) {
 		if( ::SetTimer( window_handle_, 1, interval_, NULL ) == 0 ) {
 			TVPThrowWindowsErrorException();

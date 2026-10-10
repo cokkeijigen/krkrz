@@ -13,6 +13,9 @@
 #include "EventImpl.h"
 #include "WindowImpl.h"
 
+// Steam オーバーレイ (Shift+Tab) の状態 (extension/achievement_tjs.cpp が更新)。
+#include "steam_overlay_state.h"
+
 #include <d3d9.h>
 #include <mmsystem.h>
 #include <algorithm>
@@ -238,8 +241,25 @@ HRESULT tTVPBasicDrawDevice::DecideD3DPresentParameters() {
 	D3dPP.Windowed = TRUE;
 	D3dPP.SwapEffect = D3DSWAPEFFECT_COPY;
 	D3dPP.BackBufferFormat = D3DFMT_UNKNOWN;
-	D3dPP.BackBufferHeight = DispMode.Height > (tjs_uint)DestRect.get_height() ? DispMode.Height : (tjs_uint)DestRect.get_height();
-	D3dPP.BackBufferWidth = DispMode.Width > (tjs_uint)DestRect.get_width() ? DispMode.Width : (tjs_uint)DestRect.get_width();
+
+	// バックバッファはクライアント領域と同じサイズにする
+	// (大きいと Steam オーバーレイの座標系がずれるため。 DestRect を下限、
+	//  不正値はディスプレイモードにフォールバック)
+	tjs_int cw = 0, ch = 0;
+	RECT client = { 0, 0, 0, 0 };
+	if( TargetWindow != NULL && ::GetClientRect( TargetWindow, &client ) ) {
+		cw = client.right - client.left;
+		ch = client.bottom - client.top;
+	}
+	// クライアント領域より DestRect が大きい場合はそれを下限とする
+	if( cw < (tjs_int)DestRect.get_width()  ) cw = (tjs_int)DestRect.get_width();
+	if( ch < (tjs_int)DestRect.get_height() ) ch = (tjs_int)DestRect.get_height();
+	// それでも不正な場合はディスプレイモードにフォールバック
+	if( cw <= 0 ) cw = (tjs_int)DispMode.Width;
+	if( ch <= 0 ) ch = (tjs_int)DispMode.Height;
+
+	D3dPP.BackBufferWidth  = (UINT)cw;
+	D3dPP.BackBufferHeight = (UINT)ch;
 	D3dPP.hDeviceWindow = TargetWindow;
 	D3dPP.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
@@ -507,8 +527,9 @@ void TJS_INTF_METHOD tTVPBasicDrawDevice::SetDestRectangle(const tTVPRect & rect
 		inherited::SetDestRectangle(rect);
 	} else {
 		// サイズも違う
-		if( rect.get_width() > (tjs_int)D3dPP.BackBufferWidth || rect.get_height() > (tjs_int)D3dPP.BackBufferHeight ) {
-			// バックバッファサイズよりも大きいサイズが指定された場合一度破棄する。後のEnsureDeviceで再生成される。
+		// バックバッファがクライアント領域と合わない場合は作り直す
+		// (縮小時に残ると Steam オーバーレイがずれる)
+		if( rect.get_width() != (tjs_int)D3dPP.BackBufferWidth || rect.get_height() != (tjs_int)D3dPP.BackBufferHeight ) {
 			DestroyD3DDevice();
 		}
 		bool success = true;
@@ -544,13 +565,46 @@ void TJS_INTF_METHOD tTVPBasicDrawDevice::Show()
 	if(!TargetWindow) return;
 	if(!Texture) return;
 	if(!Direct3DDevice) return;
-	if(!ShouldShow) return;
 
+	// Steam オーバーレイは Present hook で合成するため、静止画でも
+	// 毎フレーム Present する必要がある (閉じる過程でも必要)。
+	#ifdef __HAS_STEAM_API__
+	const bool steamOverlayPresent = TVPSteamOverlayAvailable || TVPSteamOverlayActive;
+	#else
+	const bool steamOverlayPresent = false;	// 非 Steam ビルド (従来動作)
+	#endif
+	if(!ShouldShow && !steamOverlayPresent) {
+		return;
+	}
+
+	// このフレームでゲームが合成したかどうか (ShouldShow=true なら合成済み)
+	const bool gameRenderedThisFrame = ShouldShow;
 	ShouldShow = false;
+
+	// 静止画の強制 Present 前に Texture を再転送し、黒画面を防ぐ
+	if( steamOverlayPresent && !gameRenderedThisFrame ) {
+		RedrawBackBufferFromTexture();
+	}
 
 	HRESULT hr = D3D_OK;
 	RECT client;
 	if( ::GetClientRect( TargetWindow, &client ) ) {
+		// 自己修復: バックバッファが「あるべきサイズ」(DecideD3DPresentParameters
+		// と同じ max(クライアント, DestRect) 式。 生のクライアント領域と比べると
+		// 永遠に一致せず毎フレーム再構築→描画凍結を起こす) と違えば作り直す
+		LONG expectW = client.right - client.left;
+		LONG expectH = client.bottom - client.top;
+		if( expectW < (LONG)DestRect.get_width()  ) expectW = (LONG)DestRect.get_width();
+		if( expectH < (LONG)DestRect.get_height() ) expectH = (LONG)DestRect.get_height();
+		if( expectW > 0 && expectH > 0 &&
+			( (LONG)D3dPP.BackBufferWidth  != expectW ||
+			  (LONG)D3dPP.BackBufferHeight != expectH ) ) {
+			DestroyD3DDevice();
+			EnsureDevice();		// 新しいサイズで再作成 (+InvalidateAll)
+			ShouldShow = false;
+			return;				// 次フレームから通常どおり Present される
+		}
+
 		RECT drect;
 		drect.left   = 0;
 		drect.top    = 0;
@@ -686,6 +740,64 @@ void TJS_INTF_METHOD tTVPBasicDrawDevice::NotifyBitmapCompleted(iTVPLayerManager
 			void *destp = (tjs_uint8*)TextureBuffer + TexturePitch * dest_y + dest_x * 4;
 			memcpy(destp, srcp, width_bytes);
 		}
+	}
+}
+//---------------------------------------------------------------------------
+// Steam オーバーレイ対策: 強制 Present の直前に最新 Texture を
+// バックバッファへ再転送する (静止画中にバックバッファが空になるのを防ぐ)。
+void tTVPBasicDrawDevice::RedrawBackBufferFromTexture()
+{
+	if( !Direct3DDevice ) return;
+	if( !Texture ) return;
+	if( TextureBuffer ) return;          // CPU 書き込み中は触らない
+	if( TextureWidth == 0 || TextureHeight == 0 ) return;
+
+	struct tVertices { float x, y, z, rhw; float tu, tv; };
+
+	float dl = (float)( DestRect.left   < ClipRect.left   ? ClipRect.left   : DestRect.left );
+	float dt = (float)( DestRect.top    < ClipRect.top    ? ClipRect.top    : DestRect.top );
+	float dr = (float)( DestRect.right  > ClipRect.right  ? ClipRect.right  : DestRect.right );
+	float db = (float)( DestRect.bottom > ClipRect.bottom ? ClipRect.bottom : DestRect.bottom );
+	float dw = (float)DestRect.get_width();
+	float dh = (float)DestRect.get_height();
+	if( dw <= 0 || dh <= 0 ) return;
+
+	float cl = dl - (float)DestRect.left;
+	float ct = dt - (float)DestRect.top;
+	float cr = (float)DestRect.right  - dr;
+	float cb = (float)DestRect.bottom - db;
+
+	tjs_int w, h;
+	GetSrcSize( w, h );
+
+	float sl = (float)(cl * w / dw ) / (float)TextureWidth;
+	float st = (float)(ct * h / dh ) / (float)TextureHeight;
+	float sr = (float)(w - (cr * w / dw) ) / (float)TextureWidth;
+	float sb = (float)(h - (cb * h / dh) ) / (float)TextureHeight;
+
+	tVertices vertices[] =
+	{
+		{dl - 0.5f, dt - 0.5f, 1.0f, 1.0f, sl, st },
+		{dr - 0.5f, dt - 0.5f, 1.0f, 1.0f, sr, st },
+		{dl - 0.5f, db - 0.5f, 1.0f, 1.0f, sl, sb },
+		{dr - 0.5f, db - 0.5f, 1.0f, 1.0f, sr, sb }
+	};
+
+	D3DVIEWPORT9 vp;
+	vp.X = 0;
+	vp.Y = 0;
+	vp.Width  = D3dPP.BackBufferWidth;
+	vp.Height = D3dPP.BackBufferHeight;
+	vp.MinZ = 0.0f;
+	vp.MaxZ = 1.0f;
+	Direct3DDevice->SetViewport(&vp);
+
+	if( SUCCEEDED( Direct3DDevice->BeginScene() ) ) {
+		Direct3DDevice->SetTexture(0, Texture);
+		Direct3DDevice->SetFVF( D3DFVF_XYZRHW|D3DFVF_TEX1 );
+		Direct3DDevice->DrawPrimitiveUP( D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(tVertices) );
+		Direct3DDevice->SetTexture(0, NULL);
+		Direct3DDevice->EndScene();
 	}
 }
 //---------------------------------------------------------------------------

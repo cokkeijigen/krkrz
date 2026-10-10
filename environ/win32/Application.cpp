@@ -358,6 +358,11 @@ bool tTVPApplication::StartApplication( int argc, tjs_char* argv[] ) {
 		if(TVPCheckPrintDataPath()) return true;
 		if(TVPExecuteUserConfig()) return true;
 		
+		// Steam の早期初期化 (D3D9 デバイス作成より前に行う必要がある)。
+		#ifdef __HAS_STEAM_API__
+		if( TVPSteamEarlyInit != NULL ) TVPSteamEarlyInit();
+		#endif // __HAS_STEAM_API__
+
 		image_load_thread_ = new tTVPAsyncImageLoader();
 
 		TVPSystemInit();
@@ -549,6 +554,20 @@ void tTVPApplication::BringToFront() {
 void tTVPApplication::ShowException( const wchar_t* e ) {
 	::MessageBox( NULL, e, TVPFatalError, MB_OK );
 }
+//---------------------------------------------------------------------------
+// Steam オーバーレイ対策: アイドル中もコールバックを回し 10ms で起床させる。
+// 登録は extension/achievement_tjs.cpp。
+//---------------------------------------------------------------------------
+#ifdef __HAS_STEAM_API__
+bool TVPPeriodicIdleWake = false;
+void (*TVPSteamIdlePump)() = NULL;
+
+// D3D デバイス作成前に呼ぶ Steam 早期初期化フック (詳細は Application.h)。
+//   extension/achievement_tjs.cpp が静的初期化で登録する。
+//   非 Steam ビルドでは NULL。
+void (*TVPSteamEarlyInit)() = NULL;
+#endif // __HAS_STEAM_API__
+
 void tTVPApplication::Run() {
 	TVPTerminateCode = 0;
 
@@ -594,7 +613,21 @@ void tTVPApplication::HandleIdle(MSG &) {
 	if( TVPSystemControl ) {
 		done = TVPSystemControl->ApplicationIdle();
 	}
-	if( done ) ::WaitMessage();
+	if( done ) {
+		#ifdef __HAS_STEAM_API__
+		// アイドル中も Steam コールバックを回し、 10ms で必ず起床させる
+		if( TVPSteamIdlePump != NULL ) {
+			TVPSteamIdlePump();
+		}
+
+		if( TVPPeriodicIdleWake ) {
+			::MsgWaitForMultipleObjectsEx( 0, NULL, 10, QS_ALLINPUT, MWMO_INPUTAVAILABLE );
+		} else
+		#endif // __HAS_STEAM_API__
+		{
+			::WaitMessage();
+		}
+	}
 }
 void tTVPApplication::SetTitle( const std::wstring& caption ) {
 	title_ = caption;

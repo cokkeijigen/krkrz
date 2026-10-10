@@ -24,6 +24,8 @@
 #include "Application.h"
 #include "TVPScreen.h"
 
+#include <cstdio>
+
 //---------------------------------------------------------------------------
 // DirectInput management
 //---------------------------------------------------------------------------
@@ -316,6 +318,24 @@ tTVPDirectInputDevice::tTVPDirectInputDevice()
 {
 	TVPAddRefDirectInput();
 	Device = NULL;
+	WrapDevice = NULL;
+}
+//---------------------------------------------------------------------------
+void tTVPDirectInputDevice::ReleaseDevice()
+{
+	// 先に Device を解放して参照カウントを 1 減らしてから WrapDevice を
+	// 解放する。ラッパーの Release は内部カウント 0 で初めてオーバーレイ側
+	// の後始末を行うため、逆順だとグローバル ポインタが残る。
+	if(Device)
+	{
+		Device->Release();
+		Device = NULL;
+	}
+	if(WrapDevice)
+	{
+		WrapDevice->Release();
+		WrapDevice = NULL;
+	}
 }
 //---------------------------------------------------------------------------
 tTVPDirectInputDevice::~tTVPDirectInputDevice()
@@ -324,6 +344,12 @@ tTVPDirectInputDevice::~tTVPDirectInputDevice()
 	{
 		Device->Unacquire();
 		Device->Release();
+		Device = NULL;
+	}
+	if(WrapDevice)
+	{
+		WrapDevice->Release();
+		WrapDevice = NULL;
 	}
 	TVPReleaseDirectInput();
 }
@@ -335,8 +361,7 @@ void tTVPDirectInputDevice::SetCooperativeLevel(HWND window)
 		if(FAILED(Device->SetCooperativeLevel(
 			window, DISCL_NONEXCLUSIVE|DISCL_FOREGROUND)))
 		{
-			Device->Release();
-			Device = NULL;
+			ReleaseDevice();
 		}
 	}
 }
@@ -362,24 +387,54 @@ tTVPWheelDirectInputDevice::tTVPWheelDirectInputDevice(HWND window) :
 				GUID_SysMouse, &dev, NULL);
 			if(SUCCEEDED(hr) && dev)
 			{
+				// CreateDevice の戻り値を保持する (overlay が被せたラッカー;
+				// 保持しないと破棄時に overlay 内部に不正ポインタが残る)。
+				// 詳細は DInputMgn.h の WrapDevice 参照。
+				WrapDevice = dev;
+
+				IDirectInputDevice2 * dev2 = NULL;
 				hr	= dev->QueryInterface(
-					IID_IDirectInputDevice2, (LPVOID*)&Device);
-				dev->Release();
-				if(FAILED(hr)) Device = NULL;
+					IID_IDirectInputDevice2, (LPVOID*)&dev2);
+				if(SUCCEEDED(hr) && dev2)
+				{
+					if(static_cast<IDirectInputDevice *>(dev2) == dev)
+					{
+						// ラッパーではない (通常のデバイス)。QI で増えた
+						// 余分な参照をここで返し、二重解放を防ぐ。
+						dev2->Release();
+						WrapDevice = NULL;
+					}
+					else
+					{
+						// Steam オーバーレイのラッパー (IWrapMouseDevice7)。
+						// 保持しておき、破棄時に必ず Release する。
+					}
+					Device = dev2;
+				}
+				else
+				{
+					// QueryInterface 失敗。CreateDevice の戻り値を解放する
+					//   (ラッパーならこれで内部デバイスも解放され、overlay
+					//    側のグローバルもクリアされる)
+					dev->Release();
+					WrapDevice = NULL;
+					Device = NULL;
+					hr = E_FAIL;
+				}
 			}
 			if(SUCCEEDED(hr) && Device)
 			{
 				if(FAILED(Device->SetDataFormat(&TVPWheelDIDF)))
 				{
-					Device->Release();
-					Device = NULL;
+					ReleaseDevice();
 				}
 				if(Device) SetCooperativeLevel(window);
 				if(Device) Device->Acquire();
 			}
 			else
 			{
-				Device = NULL;
+				// デバイスを取得できなかった。残骸があれば片付ける。
+				ReleaseDevice();
 			}
 		}
 	}
@@ -454,8 +509,7 @@ tTVPPadDirectInputDevice::tTVPPadDirectInputDevice(HWND window) :
 			{
 				if(FAILED(Device->SetDataFormat(&c_dfPad)))
 				{
-					Device->Release();
-					Device = NULL;
+					ReleaseDevice();
 				}
 			}
 			if(Device) SetCooperativeLevel(window);
@@ -480,8 +534,7 @@ tTVPPadDirectInputDevice::tTVPPadDirectInputDevice(HWND window) :
 				hr |=Device->SetProperty(DIPROP_DEADZONE, &pw.diph);
 				if(FAILED(hr))
 				{
-					Device->Release();
-					Device = NULL;
+					ReleaseDevice();
 				}
 			}
 			if(Device) Device->Acquire();

@@ -1093,6 +1093,11 @@ tTJSNI_Window::Construct(tjs_int numparams, tTJSVariant **param,
 	} else {
 		Form = new TTVPWindowForm(Application, this);
 	}
+
+	// WaitVSync 既定 true のときは VSyncTimingThread がないと Show() が
+	// 呼ばれないため、ここで明示的に同期する。
+	UpdateVSyncThread();
+
 	return TJS_S_OK;
 }
 //---------------------------------------------------------------------------
