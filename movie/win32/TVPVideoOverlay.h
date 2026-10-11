@@ -18,6 +18,11 @@ extern void __stdcall GetMFVideoOverlayObject(
 	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
 	const wchar_t *type, unsigned __int64 size, class iTVPVideoOverlay **out);
 
+// レイヤ描画用 (デコード結果をエンジンの Bitmap へ書き出す)
+extern void __stdcall GetMFVideoLayerObject(
+	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
+	const wchar_t *type, unsigned __int64 size, class iTVPVideoOverlay **out);
+
 
 /*[*/
 typedef void* (*tTVPCreateDSFilter)( void* formatdata );

@@ -67,6 +67,14 @@ private:
 public:
 	void SetToRecreateDrawer() { DestroyD3DDevice(); }
 
+#ifdef __HAS_STEAM_API__
+	// SteamAPI_Init 後に既存デバイスを作り直す (overlay の D3D フックは
+	// init 以後に生成されたデバイスしか wrap しないため)。
+	static void RecreateForSteamOverlayHook();
+	// オーバーレイの開閉に合わせてビデオ子ウィンドウを隠す/戻す。
+	static void SteamSetMovieWindowsVisible( bool visible );
+#endif
+
 public:
 	void EnsureDevice();
 

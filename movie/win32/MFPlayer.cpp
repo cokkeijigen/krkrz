@@ -41,6 +41,49 @@
 
 
 //----------------------------------------------------------------------------
+//! @brief 映像サイズのままだとウィンドウからはみ出して切り取られるので、デコード側で
+//! 縮小してもらう。その基準になるクライアントサイズを最大の可視トップレベルウィンドウから取る。
+//----------------------------------------------------------------------------
+namespace {
+	struct tTVPFindMainWindowContext {
+		DWORD	ProcessId;
+		HWND	Best;
+		LONG	Area;
+	};
+	BOOL CALLBACK TVPFindMainWindowProc( HWND hWnd, LPARAM lParam ) {
+		tTVPFindMainWindowContext *ctx = (tTVPFindMainWindowContext*)lParam;
+		DWORD pid = 0;
+		::GetWindowThreadProcessId( hWnd, &pid );
+		if( pid != ctx->ProcessId ) return TRUE;
+		if( !::IsWindowVisible( hWnd ) ) return TRUE;
+		if( ::GetWindow( hWnd, GW_OWNER ) != NULL ) return TRUE;	// 所有ウィンドウは除外
+		if( ( ::GetWindowLong( hWnd, GWL_STYLE ) & WS_CHILD ) != 0 ) return TRUE;
+		RECT rc;
+		if( !::GetClientRect( hWnd, &rc ) ) return TRUE;
+		const LONG area = (rc.right - rc.left) * (rc.bottom - rc.top);
+		if( area > ctx->Area ) { ctx->Area = area; ctx->Best = hWnd; }
+		return TRUE;
+	}
+}
+
+static bool TVPGetGameClientSize( long *width, long *height ) {
+	tTVPFindMainWindowContext ctx;
+	ctx.ProcessId = ::GetCurrentProcessId();
+	ctx.Best = NULL;
+	ctx.Area = 0;
+	::EnumWindows( (WNDENUMPROC)TVPFindMainWindowProc, (LPARAM)&ctx );
+	if( ctx.Best == NULL ) return false;
+	RECT rc;
+	if( !::GetClientRect( ctx.Best, &rc ) ) return false;
+	const long w = rc.right - rc.left;
+	const long h = rc.bottom - rc.top;
+	if( w <= 0 || h <= 0 ) return false;
+	if( width ) *width = w;
+	if( height ) *height = h;
+	return true;
+}
+
+//----------------------------------------------------------------------------
 //! @brief	  	VideoOverlay MediaFoundationを取得する
 //! @param		callbackwin : 
 //! @param		stream : 
@@ -55,6 +98,19 @@ void __stdcall GetMFVideoOverlayObject(
 	const wchar_t *type, unsigned __int64 size, iTVPVideoOverlay **out)
 {
 	*out = new tTVPMFPlayer;
+
+	if( *out )
+		static_cast<tTVPMFPlayer*>(*out)->BuildGraph( callbackwin, stream, streamname, type, size );
+}
+//----------------------------------------------------------------------------
+//! @brief 子ウィンドウを使わずデコード結果をエンジンの Bitmap へ書き出すので、
+//! 映像がメインの描画デバイス経由で描かれ、Steam overlay を上に合成できる。
+//----------------------------------------------------------------------------
+void __stdcall GetMFVideoLayerObject(
+	HWND callbackwin, IStream *stream, const wchar_t * streamname,
+	const wchar_t *type, unsigned __int64 size, iTVPVideoOverlay **out)
+{
+	*out = new tTVPMFPlayer(true);
 
 	if( *out )
 		static_cast<tTVPMFPlayer*>(*out)->BuildGraph( callbackwin, stream, streamname, type, size );
@@ -126,7 +182,7 @@ STDMETHODIMP tTVPPlayerCallback::Invoke( IMFAsyncResult *pAsyncResult ) {
 	return S_OK;
 }
 //----------------------------------------------------------------------------
-tTVPMFPlayer::tTVPMFPlayer() {
+tTVPMFPlayer::tTVPMFPlayer(bool layerMode) {
 	CoInitialize(NULL);
 	MFStartup( MF_VERSION );
 
@@ -145,7 +201,17 @@ tTVPMFPlayer::tTVPMFPlayer() {
 
 	HnsDuration = 0;
 
-	
+	LayerMode = layerMode;
+	LayerBitmap[0] = NULL;
+	LayerBitmap[1] = NULL;
+	LayerBufferSize = 0;
+	LayerFrontIndex = 0;
+	LayerVideoWidth = 0;
+	LayerVideoHeight = 0;
+	VideoSink = NULL;
+	MediaSourceResolved = false;
+	EndedPosted = false;
+
 	AudioVolumeValue = 0;
 	AudioBalanceValue = 0;
 	//StartPositionSpecify = false;
@@ -199,6 +265,98 @@ void __stdcall tTVPMFPlayer::BuildGraph( HWND callbackwin, IStream *stream,
 	if( FAILED(hr = pCreateMFByteStream( stream, &ByteStream )) ) {
 		TVPThrowExceptionMessage(L"Faild to create stream.");
 	}
+
+	if( LayerMode ) {
+		// レイヤ描画では SetWindow が呼ばれない。エンジンは BuildGraph の直後に
+		// GetVideoSize でレイヤの Bitmap を確保するので、先にサイズを知る必要がある。
+		ResolveVideoInfo();
+		long cw = 0, ch = 0;
+		if( TVPGetGameClientSize( &cw, &ch ) ) {
+			LayerVideoWidth = cw;
+			LayerVideoHeight = ch;
+		}
+		CreateVideoPlayer();
+	}
+}
+//----------------------------------------------------------------------------
+//! @brief	  	メディアソースを開く (未オープンなら開く)
+//----------------------------------------------------------------------------
+HRESULT tTVPMFPlayer::ResolveMediaSource() {
+	HRESULT hr;
+	if( MediaSource.p ) {
+		return S_OK;	// 既に開いている
+	}
+	CComPtr<IMFSourceResolver> pSourceResolver;
+	if( FAILED(hr = MFCreateSourceResolver(&pSourceResolver)) ) {
+		TVPThrowExceptionMessage(L"Faild to create source resolver.");
+	}
+	MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
+	CComPtr<IUnknown> pSource;
+	if( FAILED(hr = pSourceResolver->CreateObjectFromByteStream( ByteStream, StreamName.c_str(), MF_RESOLUTION_MEDIASOURCE, NULL, &ObjectType, (IUnknown**)&pSource )) ) {
+		TVPThrowExceptionMessage(L"Faild to open stream.");
+	}
+	if( ObjectType != MF_OBJECT_MEDIASOURCE ) {
+		TVPThrowExceptionMessage(L"Invalid media source.");
+	}
+	if( FAILED(hr = pSource.QueryInterface(&MediaSource)) ) {
+		TVPThrowExceptionMessage(L"Faild to query Media source.");
+	}
+	MediaSourceResolved = true;
+	return hr;
+}
+//----------------------------------------------------------------------------
+//! @brief	  	ソースの映像ストリームからフレームサイズとフレームレートを読む
+//----------------------------------------------------------------------------
+HRESULT tTVPMFPlayer::ResolveVideoInfo() {
+	HRESULT hr;
+	if( FAILED(hr = ResolveMediaSource()) ) {
+		return hr;
+	}
+	CComPtr<IMFPresentationDescriptor> pPresentationDescriptor;
+	if( FAILED(hr = MediaSource->CreatePresentationDescriptor(&pPresentationDescriptor)) ) {
+		return hr;
+	}
+	DWORD streamCount = 0;
+	if( FAILED(hr = pPresentationDescriptor->GetStreamDescriptorCount(&streamCount)) ) {
+		return hr;
+	}
+	for( DWORD i = 0; i < streamCount; i++ ) {
+		BOOL selected = FALSE;
+		CComPtr<IMFStreamDescriptor> pSD;
+		if( FAILED(hr = pPresentationDescriptor->GetStreamDescriptorByIndex(i, &selected, &pSD)) ) {
+			continue;
+		}
+		if( !selected ) continue;
+
+		CComPtr<IMFMediaTypeHandler> pHandler;
+		if( FAILED(hr = pSD->GetMediaTypeHandler(&pHandler)) ) continue;
+		GUID guidMajorType;
+		if( FAILED(hr = pHandler->GetMajorType(&guidMajorType)) ) continue;
+		if( guidMajorType != MFMediaType_Video ) continue;
+
+		CComPtr<IMFMediaType> pMediaType;
+		if( FAILED(hr = pHandler->GetCurrentMediaType(&pMediaType)) ) continue;
+
+		UINT64 frameSize = 0;
+		if( SUCCEEDED( pMediaType->GetUINT64( MF_MT_FRAME_SIZE, &frameSize ) ) && frameSize != 0 ) {
+			LayerVideoWidth  = (long)(UINT32)( frameSize >> 32 );
+			LayerVideoHeight = (long)(UINT32)( frameSize & 0xffffffff );
+		}
+		UINT64 frameRate = 0;
+		if( SUCCEEDED( pMediaType->GetUINT64( MF_MT_FRAME_RATE, &frameRate ) ) ) {
+			UINT32 num = (UINT32)( frameRate >> 32 );
+			UINT32 den = (UINT32)( frameRate & 0xffffffff );
+			if( num != 0 && den != 0 ) {
+				FPSNumerator = num;
+				FPSDenominator = den;
+			}
+		}
+		break;
+	}
+	if( LayerVideoWidth <= 0 || LayerVideoHeight <= 0 ) {
+		TVPThrowExceptionMessage(L"Faild to get video size.");
+	}
+	return S_OK;
 }
 /*
 HRESULT tTVPMFPlayer::GetPresentationDescriptorFromTopology( IMFPresentationDescriptor **ppPD ) {
@@ -268,12 +426,16 @@ HRESULT tTVPMFPlayer::CreateVideoPlayer() {
 		return S_OK;	// 既に作成済み
 	}
 
-	HRESULT hr = CreateChildWindow();
-	if( hr != S_OK ) return hr;
+	HRESULT hr = S_OK;
+	HWND hWnd = NULL;
+	if( !LayerMode ) {
+		hr = CreateChildWindow();
+		if( hr != S_OK ) return hr;
 
-	HWND hWnd = GetChildWindow();
-	if( hWnd == NULL || hWnd == INVALID_HANDLE_VALUE )
-		return E_FAIL;
+		hWnd = GetChildWindow();
+		if( hWnd == NULL || hWnd == INVALID_HANDLE_VALUE )
+			return E_FAIL;
+	}
 
 	if( FAILED(hr = MFCreateMediaSession( NULL, &MediaSession )) ) {
 		TVPThrowExceptionMessage(L"Faild to create Media session.");
@@ -281,23 +443,8 @@ HRESULT tTVPMFPlayer::CreateVideoPlayer() {
 	if( FAILED(hr = MediaSession->BeginGetEvent( PlayerCallback, NULL )) ) {
 		TVPThrowExceptionMessage(L"Faild to begin get event.");
 	}
-	CComPtr<IMFSourceResolver> pSourceResolver;
-	if( FAILED(hr = MFCreateSourceResolver(&pSourceResolver)) ) {
-		TVPThrowExceptionMessage(L"Faild to create source resolver.");
-	}
-	MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
-	CComPtr<IUnknown> pSource;
-	if( FAILED(hr = pSourceResolver->CreateObjectFromByteStream( ByteStream, StreamName.c_str(), MF_RESOLUTION_MEDIASOURCE, NULL, &ObjectType, (IUnknown**)&pSource )) ) {
-	//if( FAILED(hr = pSourceResolver->CreateObjectFromURL( L"C:\\krkrz\\bin\\win32\\data\\test.mp4",
-	//	MF_RESOLUTION_MEDIASOURCE, NULL, &ObjectType, (IUnknown**)&pSource)) ) {
-		TVPThrowExceptionMessage(L"Faild to open stream.");
-	}
-	if( ObjectType != MF_OBJECT_MEDIASOURCE ) {
-		TVPThrowExceptionMessage(L"Invalid media source.");
-	}
-	//CComPtr<IMFMediaSource> pMediaSource;
-	if( FAILED(hr = pSource.QueryInterface(&MediaSource)) ) {
-		TVPThrowExceptionMessage(L"Faild to query Media source.");
+	if( FAILED(hr = ResolveMediaSource()) ) {
+		return hr;
 	}
 	if( FAILED(hr = MFCreateTopology(&Topology)) ) {
 		TVPThrowExceptionMessage(L"Faild to create Topology.");
@@ -335,8 +482,10 @@ HRESULT tTVPMFPlayer::AddBranchToPartialTopology( IMFTopology *pTopology, IMFMed
 	}
 	if( selected ) {
 		// Create the media sink activation object.
+		// レイヤ描画モードでは映像ストリームに限りストリームシンクが返る。
 		CComPtr<IMFActivate> pSinkActivate;
-		if( FAILED(hr = CreateMediaSinkActivate(pSD, hVideoWnd, &pSinkActivate)) ) {
+		CComPtr<IMFStreamSink> pStreamSink;
+		if( FAILED(hr = CreateMediaSinkActivate(pSD, hVideoWnd, &pSinkActivate, &pStreamSink)) ) {
 			return S_OK;	// video と audio 以外は無視
 		}
 		// Add a source node for this stream.
@@ -346,8 +495,21 @@ HRESULT tTVPMFPlayer::AddBranchToPartialTopology( IMFTopology *pTopology, IMFMed
 		}
 		// Create the output node for the renderer.
 		CComPtr<IMFTopologyNode> pOutputNode;
-        if( FAILED(hr = AddOutputNode(pTopology, pSinkActivate, 0, &pOutputNode)) ) {
-			TVPThrowExceptionMessage(L"Faild to add output node.");
+		if( pSinkActivate.p ) {
+			// IMFActivate としてぶら下げるとローダがデコーダ/カラコンバータを挿入できる
+			DWORD dwSinkId = 0;
+			if( pStreamSink.p ) pStreamSink->GetIdentifier( &dwSinkId );
+			if( FAILED(hr = AddOutputNode(pTopology, pSinkActivate, dwSinkId, &pOutputNode)) ) {
+				TVPThrowExceptionMessage(L"Faild to add output node.");
+			}
+		} else if( pStreamSink.p ) {
+			if( FAILED(hr = AddOutputNode(pTopology, pStreamSink, &pOutputNode)) ) {
+				TVPThrowExceptionMessage(L"Faild to add output node.");
+			}
+		} else {
+			if( FAILED(hr = AddOutputNode(pTopology, pSinkActivate, 0, &pOutputNode)) ) {
+				TVPThrowExceptionMessage(L"Faild to add output node.");
+			}
 		}
 		// Connect the source node to the output node.
         if( FAILED(hr = pSourceNode->ConnectOutput(0, pOutputNode, 0)) ) {
@@ -356,8 +518,10 @@ HRESULT tTVPMFPlayer::AddBranchToPartialTopology( IMFTopology *pTopology, IMFMed
 	}
 	return hr;
 }
-HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, HWND hVideoWindow, IMFActivate **ppActivate ) {
+HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, HWND hVideoWindow, IMFActivate **ppActivate, IMFStreamSink **ppStreamSink ) {
 	HRESULT hr;
+	*ppActivate = NULL;
+	if( ppStreamSink ) *ppStreamSink = NULL;
 	CComPtr<IMFMediaTypeHandler> pHandler;
 	// Get the media type handler for the stream.
     if( FAILED(hr = pSourceSD->GetMediaTypeHandler(&pHandler)) ) {
@@ -375,33 +539,70 @@ HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, H
 			TVPThrowExceptionMessage(L"Faild to create audio render.");
 		}
 	} else if( MFMediaType_Video == guidMajorType ) {
-		// Get FPS
+		// Get FPS and frame size
 		CComPtr<IMFMediaType> pMediaType;
 		if( SUCCEEDED(hr = pHandler->GetCurrentMediaType(&pMediaType)) ) {
 			hr = MFGetAttributeRatio( pMediaType, MF_MT_FRAME_RATE, &FPSNumerator, &FPSDenominator );
+			// レイヤ描画では表示サイズ (クライアント領域) を既に決めてあるので上書きしない
+			if( !LayerMode ) {
+				UINT64 frameSize = 0;
+				if( SUCCEEDED( pMediaType->GetUINT64( MF_MT_FRAME_SIZE, &frameSize ) ) && frameSize != 0 ) {
+					long width  = (long)(UINT32)( frameSize >> 32 );
+					long height = (long)(UINT32)( frameSize & 0xffffffff );
+					if( width > 0 && height > 0 ) {
+						LayerVideoWidth  = width;
+						LayerVideoHeight = height;
+					}
+				}
+			}
 		}
 
-        // Create the video renderer.
-        if( FAILED(hr = MFCreateVideoRendererActivate(hVideoWindow, &pActivate) ) ) {
-			TVPThrowExceptionMessage(L"Faild to create video render.");
-		}
-		// ここでカスタムEVRをつなぐようにすると自前で色々描画できるようになる
-		// 現状は標準のものを使っている
+		if( LayerMode ) {
+			// 子ウィンドウの代わりにエンジンの Bitmap へ書き出すストリームシンクをぶら下げる
+			if( LayerVideoWidth <= 0 || LayerVideoHeight <= 0 ) {
+				TVPThrowExceptionMessage(L"Faild to get video size.");
+			}
+			if( VideoSink != NULL ) {
+				// 映像ストリームが複数ある場合は想定外
+				VideoSink->AddRef();
+				*ppStreamSink = VideoSink;
+				hr = S_OK;
+			} else {
+				tTVPMFVideoSink *pSink = new tTVPMFVideoSink( this, (UINT32)LayerVideoWidth, (UINT32)LayerVideoHeight );
+				if( pSink == NULL ) {
+					hr = E_OUTOFMEMORY;
+				} else {
+					// CUnknown は参照カウント 0 で生まれる。1 つは自分用、もう 1 つはトポロジ用。
+					pSink->AddRef();
+					pSink->AddRef();
+					VideoSink = pSink;
+					*ppStreamSink = pSink;
+					hr = S_OK;
+				}
+			}
+		} else {
+			// Create the video renderer.
+			if( FAILED(hr = MFCreateVideoRendererActivate(hVideoWindow, &pActivate) ) ) {
+				TVPThrowExceptionMessage(L"Faild to create video render.");
+			}
+			// ここでカスタムEVRをつなぐようにすると自前で色々描画できるようになる
+			// 現状は標準のものを使っている
 #if 0
-		tTVPEVRCustomPresenter* my_activate_obj = new tTVPEVRCustomPresenter(hr);
-		my_activate_obj->AddRef();
-		CComPtr<IUnknown> unk;
-		my_activate_obj->QueryInterface( IID_IUnknown, (void**)&unk );
-		if( FAILED(hr = pActivate->SetUnknown(MF_ACTIVATE_CUSTOM_VIDEO_PRESENTER_ACTIVATE, unk)) ) {
+			tTVPEVRCustomPresenter* my_activate_obj = new tTVPEVRCustomPresenter(hr);
+			my_activate_obj->AddRef();
+			CComPtr<IUnknown> unk;
+			my_activate_obj->QueryInterface( IID_IUnknown, (void**)&unk );
+			if( FAILED(hr = pActivate->SetUnknown(MF_ACTIVATE_CUSTOM_VIDEO_PRESENTER_ACTIVATE, unk)) ) {
+				my_activate_obj->Release();
+				TVPThrowExceptionMessage(L"Faild to add custom EVR presenter video render.");
+			}
 			my_activate_obj->Release();
-			TVPThrowExceptionMessage(L"Faild to add custom EVR presenter video render.");
-		}
-		my_activate_obj->Release();
 #endif
+		}
 	} else {
 		hr = E_FAIL;
 	}
-	if( SUCCEEDED(hr) ) {
+	if( SUCCEEDED(hr) && pActivate.p ) {
 		// Return IMFActivate pointer to caller.
 		*ppActivate = pActivate;
 		(*ppActivate)->AddRef();
@@ -463,10 +664,9 @@ HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFActivate *pActiv
 
 	return hr;
 }
-/*
+//----------------------------------------------------------------------------
 HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStreamSink, IMFTopologyNode **ppNode ) {
 	HRESULT hr;
-	// Create the node.
 	CComPtr<IMFTopologyNode> pNode;
     if( FAILED(hr = MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, &pNode)) ) {
 		TVPThrowExceptionMessage(L"Faild to create output node.");
@@ -487,7 +687,6 @@ HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStr
 
 	return hr;
 }
-*/
 //----------------------------------------------------------------------------
 //! @brief	  	インターフェイスを解放する
 //----------------------------------------------------------------------------
@@ -500,6 +699,15 @@ void __stdcall tTVPMFPlayer::ReleaseAll()
 			MediaSource->Shutdown();
 		}
 		MediaSession->Shutdown();
+	}
+	if( VideoSink != NULL ) {
+		VideoSink->Shutdown();
+		VideoSink->Release();
+		VideoSink = NULL;
+	}
+	{
+		CAutoLock lock( &EventLock );
+		EventQueue.clear();
 	}
 	if( PlayerCallback ) {
 		PlayerCallback->Release();
@@ -547,6 +755,23 @@ void tTVPMFPlayer::OnPause() {
 	if( BuildWindow != NULL) ::PostMessage( BuildWindow, WM_STATE_CHANGE, vsPaused, 0 );
 }
 void tTVPMFPlayer::OnPlayBackEnded() {
+	PostEndedOnce();
+}
+//----------------------------------------------------------------------------
+//! @brief パイプラインが MESessionEnded を出さない構成でも終われるよう、
+//! シンク側から直接終端を伝える経路 (エンジンは vsEnded で Stop する)。
+//----------------------------------------------------------------------------
+void tTVPMFPlayer::OnLayerEndOfStream() {
+	PostEndedOnce();
+}
+//----------------------------------------------------------------------------
+void tTVPMFPlayer::PostEndedOnce() {
+	bool post = false;
+	{
+		CAutoLock lock( &EventLock );
+		if( !EndedPosted ) { EndedPosted = true; post = true; }
+	}
+	if( !post ) return;
 	if( BuildWindow != NULL ) ::PostMessage( BuildWindow, WM_STATE_CHANGE, vsEnded, 0 );
 }
 void tTVPMFPlayer::OnRateSet( double rate ) {
@@ -597,6 +822,12 @@ void __stdcall tTVPMFPlayer::Play() {
 	HRESULT hr = E_FAIL;
 	if( MediaSession.p ) {
 		SetVolumeToMF();
+
+		// 再生し直しに備えて終端通知フラグを戻す
+		{
+			CAutoLock lock( &EventLock );
+			EndedPosted = false;
+		}
 
 		PROPVARIANT varStart;
 		PropVariantInit(&varStart);
@@ -702,7 +933,26 @@ void __stdcall tTVPMFPlayer::GetStatus(tTVPVideoStatus *status) {
 	}
 }
 void __stdcall tTVPMFPlayer::GetEvent(long *evcode, LONG_PTR *param1, LONG_PTR *param2, bool *got) {
+	if( LayerMode ) {
+		// シンクが積んだ EC_UPDATE を 1 つ取り出す
+		LONG_PTR value = 0;
+		{
+			CAutoLock lock( &EventLock );
+			if( EventQueue.empty() ) {
+				if( got ) *got = false;
+				return;
+			}
+			value = EventQueue.front();
+			EventQueue.pop_front();
+		}
+		if( evcode ) *evcode = EC_UPDATE;
+		if( param1 ) *param1 = value;
+		if( param2 ) *param2 = 0;
+		if( got ) *got = true;
+		return;
+	}
 	/* 何もしない */
+	if( got ) *got = false;
 }
 void __stdcall tTVPMFPlayer::FreeEventParams(long evcode, LONG_PTR param1, LONG_PTR param2) {
 	/* 何もしない */
@@ -759,6 +1009,19 @@ void __stdcall tTVPMFPlayer::GetTotalTime( __int64 *t ) {
 }
 
 void __stdcall tTVPMFPlayer::GetVideoSize( long *width, long *height ){
+	if( LayerMode ) {
+		// レイヤ描画ではエンジンがこのサイズで Bitmap を確保する。
+		// 不明な場合は 0 を返し、呼び出し側 (VideoOvlImpl) に例外を出させる。
+		if( LayerVideoWidth <= 0 || LayerVideoHeight <= 0 ) {
+			try {
+				ResolveVideoInfo();
+			} catch(...) {
+			}
+		}
+		if( width ) *width = LayerVideoWidth > 0 ? LayerVideoWidth : 0;
+		if( height ) *height = LayerVideoHeight > 0 ? LayerVideoHeight : 0;
+		return;
+	}
 	HRESULT hr = S_OK;
 	if( VideoDisplayControl.p ) {
 		SIZE vsize;
@@ -780,10 +1043,64 @@ void __stdcall tTVPMFPlayer::GetVideoSize( long *width, long *height ){
 	}
 }
 void __stdcall tTVPMFPlayer::GetFrontBuffer( BYTE **buff ){
+	if( LayerMode ) {
+		CAutoLock lock( &LayerLock );
+		*buff = LayerBitmap[LayerFrontIndex];
+		return;
+	}
+	/* 何もしない */
+}void __stdcall tTVPMFPlayer::SetVideoBuffer( BYTE *buff1, BYTE *buff2, long size ){
+	if( LayerMode ) {
+		CAutoLock lock( &LayerLock );
+		LayerBitmap[0] = buff1;
+		LayerBitmap[1] = buff2;
+		LayerBufferSize = size;
+		LayerFrontIndex = 0;
+		return;
+	}
 	/* 何もしない */
 }
-void __stdcall tTVPMFPlayer::SetVideoBuffer( BYTE *buff1, BYTE *buff2, long size ){
-	/* 何もしない */
+
+//----------------------------------------------------------------------------
+// レイヤ描画用 (tTVPMFVideoSink から呼ばれる)
+//----------------------------------------------------------------------------
+bool tTVPMFPlayer::GetLayerBackBuffer( BYTE **buff, long *size ) {
+	CAutoLock lock( &LayerLock );
+	if( buff == NULL || size == NULL ) return false;
+	const int back = 1 - LayerFrontIndex;
+	if( LayerBitmap[back] == NULL || LayerBufferSize <= 0 ) return false;
+	*buff = LayerBitmap[back];
+	*size = LayerBufferSize;
+	return true;
+}
+void tTVPMFPlayer::PresentLayerFrame( LONGLONG hnsSampleTime ) {
+	{
+		CAutoLock lock( &LayerLock );
+		LayerFrontIndex = 1 - LayerFrontIndex;
+	}
+	// EC_UPDATE の param1 に渡すフレーム番号
+	LONG_PTR frame = 0;
+	if( FPSDenominator != 0 && FPSNumerator != 0 ) {
+		const LONGLONG oneSecond = 10000000;
+		frame = (LONG_PTR)( hnsSampleTime * (LONGLONG)FPSNumerator / ( (LONGLONG)FPSDenominator * oneSecond ) );
+	}
+	{
+		CAutoLock lock( &EventLock );
+		while( EventQueue.size() >= 8 ) EventQueue.pop_front();
+		EventQueue.push_back( frame );
+	}
+	if( CallbackWindow != NULL ) {
+		::PostMessage( CallbackWindow, WM_GRAPHNOTIFY, 0, 0 );
+	}
+}
+void tTVPMFPlayer::OnLayerVideoSizeChanged( long width, long height, UINT32 fpsNumerator, UINT32 fpsDenominator ) {
+	CAutoLock lock( &LayerLock );
+	if( width > 0 ) LayerVideoWidth = width;
+	if( height > 0 ) LayerVideoHeight = height;
+	if( fpsNumerator > 0 && fpsDenominator > 0 ) {
+		FPSNumerator = fpsNumerator;
+		FPSDenominator = fpsDenominator;
+	}
 }
 
 // http://msdn.microsoft.com/en-us/library/windows/desktop/gg583862%28v=vs.85%29.aspx

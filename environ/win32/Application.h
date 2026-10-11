@@ -184,9 +184,6 @@ extern bool TVPPeriodicIdleWake;
 // アイドル時に呼ばれる Steam コールバックポンプ (= SteamAPI_RunCallbacks)
 extern void (*TVPSteamIdlePump)();
 
-// D3D9 デバイス作成より前に呼ぶ Steam 早期初期化フック
-extern void (*TVPSteamEarlyInit)();
-
 #endif // __HAS_STEAM_API__
 
 #endif // __T_APPLICATION_H__

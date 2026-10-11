@@ -19,5 +19,18 @@ extern bool TVPSteamOverlayActive;
 //   静止画では Present をスキップする (省電力動作を維持)。
 extern bool TVPSteamOverlayAvailable;
 
+// true なら main window 表示時にデバイスを作り直して overlay をフックさせる
+// (Show() が消費する。実装: BasicDrawDevice.cpp / achievement_tjs.cpp)。
+extern bool TVPSteamOverlayNeedsHook;
+
+// SteamAPI_Init 成功後に呼ぶ。既存の D3D デバイスを作り直し、overlay の
+// フック対象にする (実装: BasicDrawDevice.cpp)。
+extern void TVPSteamOverlayHookDevices();
+
+// オーバーレイの開閉に合わせてビデオ子ウィンドウ (krmovie) を隠す/戻す。
+// 子ウィンドウはクライアント領域より常に手前に合成されるため、隠さないと
+// オーバーレイがビデオの裏に隠れる (実装: BasicDrawDevice.cpp)。
+extern void TVPSteamOverlaySetMovieWindowsVisible( bool visible );
+
 #endif // __HAS_STEAM_API__
 #endif // _steam_overlay_state_h_

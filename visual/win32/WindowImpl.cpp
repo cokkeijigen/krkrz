@@ -451,6 +451,14 @@ IDirect3D9 * TVPGetDirect3DObjectNoAddRef()
 	return TVPDirect3D;
 }
 //---------------------------------------------------------------------------
+void TVPReleaseDirect3DObjectForSteamOverlay()
+{
+	// Steam overlay は SteamAPI_Init 以降に Direct3DCreate9 を通過した
+	// IDirect3D9 しか wrap しないため、init 前に作成したキャッシュを捨てる。
+	// (デバイス側は事前に DestroyD3DDevice 済みであること)
+	if(TVPDirect3D) TVPDirect3D->Release(), TVPDirect3D = NULL;
+}
+//---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
 static tTVPAtExit

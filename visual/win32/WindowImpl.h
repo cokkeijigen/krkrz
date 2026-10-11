@@ -218,6 +218,7 @@ struct IDirect3D9;
 
 /*]*/
 TJS_EXP_FUNC_DEF(IDirect3D9 *,  TVPGetDirect3DObjectNoAddRef, ());
+extern void TVPReleaseDirect3DObjectForSteamOverlay();
 extern void TVPMinimizeFullScreenWindowAtInactivation();
 extern void TVPRestoreFullScreenWindowAtActivation();
 //---------------------------------------------------------------------------

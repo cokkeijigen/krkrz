@@ -11,14 +11,13 @@
 #ifdef __HAS_STEAM_API__
 bool TVPSteamOverlayActive    = false;
 bool TVPSteamOverlayAvailable = false;
+bool TVPSteamOverlayNeedsHook = false;
 #endif
 
 #ifdef __HAS_STEAM_API__
 
 extern bool TVPPeriodicIdleWake;
 extern void (*TVPSteamIdlePump)();
-
-extern void (*TVPSteamEarlyInit)();
 
 namespace
 {
@@ -66,6 +65,9 @@ namespace achievement_tjs
 	{
 		const bool active = (pParam != nullptr && pParam->m_bActive != 0);
 		TVPSteamOverlayActive = active;
+		// オーバーレイ表示中はビデオ子ウィンドウを隠す (子ウィンドウは常に
+		// クライアント領域より手前のため、隠さないとオーバーレイが見えない)
+		TVPSteamOverlaySetMovieWindowsVisible( !active );
 	}
 
 	auto TJS_INTF_METHOD achievement_helper::OnContinuousCallback(tjs_uint64) -> void
@@ -87,6 +89,11 @@ namespace achievement_tjs
 		{
 			this->m_steam_ready = true;
 			TVPSteamOverlayAvailable = true;
+
+			// overlay は init 以降に生成された D3D デバイスしかフックできない。
+			// ここではマークだけ付け、main window が表示された時点で
+			// Show() がデバイスを作り直す (起動オプション画面には出さない)。
+			TVPSteamOverlayNeedsHook = true;
 
 			ISteamUtils* const utils{ ::SteamUtils() };
 			if (utils != nullptr)
@@ -155,22 +162,6 @@ namespace achievement_tjs
 	}
 
 	static achievement_helper helper{};
-
-	namespace
-	{
-		void TVPSteamEarlyInitImpl()
-		{
-			helper.init_steam_early();
-		}
-
-		struct TVPSteamEarlyInitRegistrar
-		{
-			TVPSteamEarlyInitRegistrar()
-			{
-				::TVPSteamEarlyInit = &TVPSteamEarlyInitImpl;
-			}
-		} g_steam_early_init_registrar;
-	}
 
 	#endif // __HAS_STEAM_API__
 

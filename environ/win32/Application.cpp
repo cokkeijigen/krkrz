@@ -357,11 +357,6 @@ bool tTVPApplication::StartApplication( int argc, tjs_char* argv[] ) {
 
 		if(TVPCheckPrintDataPath()) return true;
 		if(TVPExecuteUserConfig()) return true;
-		
-		// Steam の早期初期化 (D3D9 デバイス作成より前に行う必要がある)。
-		#ifdef __HAS_STEAM_API__
-		if( TVPSteamEarlyInit != NULL ) TVPSteamEarlyInit();
-		#endif // __HAS_STEAM_API__
 
 		image_load_thread_ = new tTVPAsyncImageLoader();
 
@@ -561,11 +556,6 @@ void tTVPApplication::ShowException( const wchar_t* e ) {
 #ifdef __HAS_STEAM_API__
 bool TVPPeriodicIdleWake = false;
 void (*TVPSteamIdlePump)() = NULL;
-
-// D3D デバイス作成前に呼ぶ Steam 早期初期化フック (詳細は Application.h)。
-//   extension/achievement_tjs.cpp が静的初期化で登録する。
-//   非 Steam ビルドでは NULL。
-void (*TVPSteamEarlyInit)() = NULL;
 #endif // __HAS_STEAM_API__
 
 void tTVPApplication::Run() {

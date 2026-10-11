@@ -178,6 +178,7 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/movie/win32/krmmovie.cpp"
 	"${SOURCE_ROOT}/movie/win32/krmovie.cpp"
 	"${SOURCE_ROOT}/movie/win32/MFPlayer.cpp"
+	"${SOURCE_ROOT}/movie/win32/MFVideoSink.cpp"
 	"${SOURCE_ROOT}/movie/win32/PlayWindow.cpp"
 	"${SOURCE_ROOT}/movie/win32/TVPVideoOverlay.cpp"
 	"${SOURCE_ROOT}/movie/win32/IBufferRenderer_i.c"

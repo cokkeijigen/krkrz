@@ -19,6 +19,51 @@
 #include <d3d9.h>
 #include <mmsystem.h>
 #include <algorithm>
+#include <vector>
+
+#ifdef __HAS_STEAM_API__
+// Steam overlay は SteamAPI_Init 以降に生成された D3D デバイスしかフックできない。
+// init 成功後に呼ばれ、既存デバイスを作り直してフック対象にする。
+static std::vector<tTVPBasicDrawDevice*>& TVPGetBasicDrawDeviceInstances() {
+	static std::vector<tTVPBasicDrawDevice*> instances;
+	return instances;
+}
+
+void TVPSteamOverlayHookDevices() {
+	tTVPBasicDrawDevice::RecreateForSteamOverlayHook();
+}
+
+// オーバーレイ表示中はビデオ子ウィンドウ (krmovie) を隠す。
+// 子ウィンドウは常にクライアント領域より手前に合成されるため、そのままだと
+// オーバーレイがビデオの裏に回って見えなくなる。閉じたら戻す。
+static BOOL CALLBACK TVPEnumVisibleChildProc( HWND hwnd, LPARAM lp ) {
+	std::vector<HWND>& v = *reinterpret_cast<std::vector<HWND>*>( lp );
+	// 復元対象は「表示中だったもの」だけ (元々隠れていたものは戻さない)
+	if( ::IsWindowVisible( hwnd ) ) v.push_back( hwnd );
+	return TRUE;
+}
+
+void tTVPBasicDrawDevice::SteamSetMovieWindowsVisible( bool visible ) {
+	static std::vector<HWND> hidden;	// 自分で隠した子ウィンドウ (復元用)
+	if( visible ) {
+		for( size_t i = 0; i < hidden.size(); i++ )
+			if( ::IsWindow( hidden[i] ) ) ::ShowWindow( hidden[i], SW_SHOW );
+		hidden.clear();
+		return;
+	}
+	hidden.clear();
+	for( size_t i = 0; i < TVPGetBasicDrawDeviceInstances().size(); i++ ) {
+		tTVPBasicDrawDevice* dev = TVPGetBasicDrawDeviceInstances()[i];
+		if( !dev->IsMainWindow || !dev->TargetWindow || !IsWindow( dev->TargetWindow ) ) continue;
+		EnumChildWindows( dev->TargetWindow, (WNDENUMPROC)TVPEnumVisibleChildProc, reinterpret_cast<LPARAM>( &hidden ) );
+	}
+	for( size_t i = 0; i < hidden.size(); i++ ) ::ShowWindow( hidden[i], SW_HIDE );
+}
+
+void TVPSteamOverlaySetMovieWindowsVisible( bool visible ) {
+	tTVPBasicDrawDevice::SteamSetMovieWindowsVisible( visible );
+}
+#endif
 
 //---------------------------------------------------------------------------
 // オプション
@@ -63,10 +108,22 @@ tTVPBasicDrawDevice::tTVPBasicDrawDevice()
 	VsyncInterval = 16;
 	ZeroMemory( &D3dPP, sizeof(D3dPP) );
 	ZeroMemory( &DispMode, sizeof(DispMode) );
+#ifdef __HAS_STEAM_API__
+	TVPGetBasicDrawDeviceInstances().push_back(this);
+#endif
 }
 //---------------------------------------------------------------------------
 tTVPBasicDrawDevice::~tTVPBasicDrawDevice()
 {
+#ifdef __HAS_STEAM_API__
+	auto& instances = TVPGetBasicDrawDeviceInstances();
+	for( size_t i = 0; i < instances.size(); i++ ) {
+		if( instances[i] == this ) {
+			instances.erase( instances.begin() + i );
+			break;
+		}
+	}
+#endif
 	DestroyD3DDevice();
 }
 //---------------------------------------------------------------------------
@@ -330,6 +387,35 @@ bool tTVPBasicDrawDevice::CreateTexture() {
 	return true;
 }
 //---------------------------------------------------------------------------
+#ifdef __HAS_STEAM_API__
+// main window 表示後にデバイスを作り直して overlay をフックさせる。
+// Show() は vsync スレッドから呼ばれるため、実際の再構築はメインスレッド
+// (連続イベント) で行う。
+class tTVPSteamOverlayHookInvoker : public tTVPContinuousEventCallbackIntf
+{
+public:
+	void TJS_INTF_METHOD OnContinuousCallback(tjs_uint64 tick) override {
+		TVPRemoveContinuousEventHook(this);
+		tTVPBasicDrawDevice::RecreateForSteamOverlayHook();
+	}
+} static TVPSteamOverlayHookInvoker;
+
+void tTVPBasicDrawDevice::RecreateForSteamOverlayHook()
+{
+	// 対象は main window のデバイスのみ (他は overlay を介しない)。
+	// 窓が既に壊れている場合は触らない。
+	for( size_t i = 0; i < TVPGetBasicDrawDeviceInstances().size(); i++ ) {
+		tTVPBasicDrawDevice* dev = TVPGetBasicDrawDeviceInstances()[i];
+		if( !dev->IsMainWindow || !dev->TargetWindow || !IsWindow( dev->TargetWindow ) ) continue;
+		dev->DestroyD3DDevice();
+		TVPReleaseDirect3DObjectForSteamOverlay();
+		// キャッシュ済み IDirect3D9 (init 前生成 = 未フック) を捨てたうえで
+		// 再生成させる。失敗しても Show() の自己修復で再試行される。
+		dev->EnsureDevice();
+	}
+}
+#endif
+//---------------------------------------------------------------------------
 void tTVPBasicDrawDevice::EnsureDevice()
 {
 	TVPInitBasicDrawDeviceOptions();
@@ -563,6 +649,16 @@ void TJS_INTF_METHOD tTVPBasicDrawDevice::NotifyLayerResize(iTVPLayerManager * m
 void TJS_INTF_METHOD tTVPBasicDrawDevice::Show()
 {
 	if(!TargetWindow) return;
+#ifdef __HAS_STEAM_API__
+	// Steam overlay のフックは main window が実際に表示されてから行う
+	// (init 直後に起動オプション画面へ出さないため)。実処理はメインスレッドへ。
+	if( TVPSteamOverlayNeedsHook && IsMainWindow &&
+		TargetWindow && IsWindowVisible( TargetWindow ) ) {
+		TVPSteamOverlayNeedsHook = false;
+		TVPAddContinuousEventHook( &TVPSteamOverlayHookInvoker );
+		TVPProcessContinuousHandlerEventFlag = true;
+	}
+#endif
 	if(!Texture) return;
 	if(!Direct3DDevice) return;
 

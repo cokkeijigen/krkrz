@@ -2,8 +2,14 @@
 #ifndef __MF_PLAYER_H__
 #define __MF_PLAYER_H__
 
+#include <cmath>
+#include <deque>
+
 #include "PlayWindow.h"
 #include "CDLLLoader.h"
+#include "MFVideoSink.h"
+#include "krmovie.h"
+#include <evr.h>
 
 // Media Foundation Player
 class tTVPPlayerCallback : public IMFAsyncCallback, public CUnknown {
@@ -55,6 +61,25 @@ protected:
 
 	MFTIME				HnsDuration;
 
+	// ---- レイヤ描画モード ----
+	// 子ウィンドウを作らずデコード結果をエンジンの Bitmap へ書き出す。オーバーレイ再生
+	// (EVR + WS_CHILD 子ウィンドウ) では Steam overlay が映像に隠れるため使わない。
+	bool		LayerMode;
+
+	BYTE		*LayerBitmap[2];	//!< エンジンが用意したフロント/バックバッファ
+	long		LayerBufferSize;	//!< 1 バッファのバイト数
+	int			LayerFrontIndex;
+	long		LayerVideoWidth;
+	long		LayerVideoHeight;
+	tTVPMFVideoSink	*VideoSink;	//!< 参照カウントは自前で管理する
+	CCritSec	LayerLock;
+	bool		MediaSourceResolved;
+	//! vsEnded の二重送信を防ぐ
+	bool		EndedPosted;
+
+	CCritSec	EventLock;
+	std::deque<LONG_PTR>	EventQueue;
+
 	std::wstring		StreamName;
 	//IStream*			Stream;
 	//bool				StartPositionSpecify;
@@ -67,13 +92,17 @@ protected:
 	void __stdcall ReleaseAll();
 
 	HRESULT AddSourceNode( IMFTopology *pTopology, IMFMediaSource *pSource, IMFPresentationDescriptor *pPD, IMFStreamDescriptor *pSD, IMFTopologyNode **ppNode );
-	//HRESULT AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStreamSink, IMFTopologyNode **ppNode );
+	HRESULT AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStreamSink, IMFTopologyNode **ppNode );
 	HRESULT AddOutputNode( IMFTopology *pTopology, IMFActivate *pActivate, DWORD dwId, IMFTopologyNode **ppNode );
 
 	HRESULT AddBranchToPartialTopology( IMFTopology *pTopology, IMFMediaSource *pSource, IMFPresentationDescriptor *pPD, DWORD iStream, HWND hVideoWnd );
-	HRESULT CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, HWND hVideoWindow, IMFActivate **ppActivate );
+	HRESULT CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, HWND hVideoWindow, IMFActivate **ppActivate, IMFStreamSink **ppStreamSink );
 
 	HRESULT CreateVideoPlayer();
+
+	//! トポロジ作成前に映像サイズを知るために先に開く
+	HRESULT ResolveMediaSource();
+	HRESULT ResolveVideoInfo();
 	/*
 	HRESULT GetPresentationDescriptorFromTopology( IMFPresentationDescriptor **ppPD );
 
@@ -124,6 +153,15 @@ protected:
 public:
 	IMFMediaSession* GetMediaSession() { return MediaSession; }
 
+	// ---- tTVPMFVideoSink から呼ばれるレイヤ描画用インターフェイス ----
+	bool GetLayerBackBuffer( BYTE **buff, long *size );
+	void PresentLayerFrame( LONGLONG hnsSampleTime );
+	void OnLayerVideoSizeChanged( long width, long height, UINT32 fpsNumerator, UINT32 fpsDenominator );
+	MFTIME GetDuration() const { return HnsDuration; }
+	//! シンクが検出したストリーム終端をエンジンへ伝える
+	void OnLayerEndOfStream();
+	void PostEndedOnce();
+
 	void NotifyError( HRESULT hr );
 	void OnMediaItemCleared();
 	void OnPause();
@@ -139,7 +177,7 @@ public:
 	MFCLOCK_STATE GetClockState();
 
 public:
-	tTVPMFPlayer();
+	tTVPMFPlayer( bool layerMode = false );
 	virtual ~tTVPMFPlayer();
 
 	virtual void __stdcall BuildGraph( HWND callbackwin, IStream *stream,

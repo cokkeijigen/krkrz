@@ -20,6 +20,9 @@
 #include "dsmixer.h"
 #include "DShowException.h"
 #include "OptionInfo.h"
+#ifdef __HAS_STEAM_API__
+#include <steam_overlay_state.h>
+#endif
 #include <windows.h>
 #define COMPILE_MULTIMON_STUBS
 #include <multimon.h>
