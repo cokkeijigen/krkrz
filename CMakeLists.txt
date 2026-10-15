@@ -179,6 +179,7 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/movie/win32/krmovie.cpp"
 	"${SOURCE_ROOT}/movie/win32/MFPlayer.cpp"
 	"${SOURCE_ROOT}/movie/win32/MFVideoSink.cpp"
+	"${SOURCE_ROOT}/movie/win32/MFVideoColor.cpp"
 	"${SOURCE_ROOT}/movie/win32/PlayWindow.cpp"
 	"${SOURCE_ROOT}/movie/win32/TVPVideoOverlay.cpp"
 	"${SOURCE_ROOT}/movie/win32/IBufferRenderer_i.c"
@@ -382,8 +383,8 @@ set(KRKRZ_DEFINITIONS
 	"TVP_LOG_TO_COMMANDLINE_CONSOLE"
 	"TVP_REPORT_HW_EXCEPTION"
 	"TVP_ENABLE_EXECUTE_AT_EXCEPTION"
-	#"TVP_DISABLE_SELECT_XP3_OR_FOLDER"
-	"__CONSOLE_ENABLED__"
+	"TVP_DISABLE_SELECT_XP3_OR_FOLDER"
+	#"__CONSOLE_ENABLED__"
 )
 
 set(KRKRZ_LIBRARIES

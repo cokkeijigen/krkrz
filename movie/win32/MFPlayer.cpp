@@ -85,13 +85,6 @@ static bool TVPGetGameClientSize( long *width, long *height ) {
 
 //----------------------------------------------------------------------------
 //! @brief	  	VideoOverlay MediaFoundationを取得する
-//! @param		callbackwin : 
-//! @param		stream : 
-//! @param		streamname : 
-//! @param		type : 
-//! @param		size : 
-//! @param		out : VideoOverlay Object
-//! @return		エラー文字列
 //----------------------------------------------------------------------------
 void __stdcall GetMFVideoOverlayObject(
 	HWND callbackwin, IStream *stream, const wchar_t * streamname,
@@ -197,8 +190,6 @@ tTVPMFPlayer::tTVPMFPlayer(bool layerMode) {
 	PlayerCallback->AddRef();
 	FPSNumerator = 1;
 	FPSDenominator = 1;
-	//Stream = NULL;
-
 	HnsDuration = 0;
 
 	LayerMode = layerMode;
@@ -214,7 +205,6 @@ tTVPMFPlayer::tTVPMFPlayer(bool layerMode) {
 
 	AudioVolumeValue = 0;
 	AudioBalanceValue = 0;
-	//StartPositionSpecify = false;
 }
 tTVPMFPlayer::~tTVPMFPlayer() {
 	Shutdown = true;
@@ -252,7 +242,6 @@ void __stdcall tTVPMFPlayer::BuildGraph( HWND callbackwin, IStream *stream,
 	CallbackWindow = callbackwin;
 	PlayWindow::SetMessageDrainWindow( callbackwin );
 	StreamName = std::wstring(streamname);
-	//Stream = stream;
 
 	HRESULT hr = S_OK;
 	// MFCreateMFByteStreamOnStream は、Windows 7 以降にのみある API なので、動的ロードして Vista での起動に支障がないようにする
@@ -279,8 +268,6 @@ void __stdcall tTVPMFPlayer::BuildGraph( HWND callbackwin, IStream *stream,
 	}
 }
 //----------------------------------------------------------------------------
-//! @brief	  	メディアソースを開く (未オープンなら開く)
-//----------------------------------------------------------------------------
 HRESULT tTVPMFPlayer::ResolveMediaSource() {
 	HRESULT hr;
 	if( MediaSource.p ) {
@@ -304,8 +291,6 @@ HRESULT tTVPMFPlayer::ResolveMediaSource() {
 	MediaSourceResolved = true;
 	return hr;
 }
-//----------------------------------------------------------------------------
-//! @brief	  	ソースの映像ストリームからフレームサイズとフレームレートを読む
 //----------------------------------------------------------------------------
 HRESULT tTVPMFPlayer::ResolveVideoInfo() {
 	HRESULT hr;
@@ -481,19 +466,16 @@ HRESULT tTVPMFPlayer::AddBranchToPartialTopology( IMFTopology *pTopology, IMFMed
 		TVPThrowExceptionMessage(L"Faild to get stream desc.");
 	}
 	if( selected ) {
-		// Create the media sink activation object.
 		// レイヤ描画モードでは映像ストリームに限りストリームシンクが返る。
 		CComPtr<IMFActivate> pSinkActivate;
 		CComPtr<IMFStreamSink> pStreamSink;
 		if( FAILED(hr = CreateMediaSinkActivate(pSD, hVideoWnd, &pSinkActivate, &pStreamSink)) ) {
 			return S_OK;	// video と audio 以外は無視
 		}
-		// Add a source node for this stream.
 		CComPtr<IMFTopologyNode> pSourceNode;
         if( FAILED(hr = AddSourceNode(pTopology, pSource, pPD, pSD, &pSourceNode) ) ) {
 			TVPThrowExceptionMessage(L"Faild to add source node.");
 		}
-		// Create the output node for the renderer.
 		CComPtr<IMFTopologyNode> pOutputNode;
 		if( pSinkActivate.p ) {
 			// IMFActivate としてぶら下げるとローダがデコーダ/カラコンバータを挿入できる
@@ -511,7 +493,6 @@ HRESULT tTVPMFPlayer::AddBranchToPartialTopology( IMFTopology *pTopology, IMFMed
 				TVPThrowExceptionMessage(L"Faild to add output node.");
 			}
 		}
-		// Connect the source node to the output node.
         if( FAILED(hr = pSourceNode->ConnectOutput(0, pOutputNode, 0)) ) {
 			TVPThrowExceptionMessage(L"Faild to connect node.");
 		}
@@ -523,23 +504,19 @@ HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, H
 	*ppActivate = NULL;
 	if( ppStreamSink ) *ppStreamSink = NULL;
 	CComPtr<IMFMediaTypeHandler> pHandler;
-	// Get the media type handler for the stream.
     if( FAILED(hr = pSourceSD->GetMediaTypeHandler(&pHandler)) ) {
 		TVPThrowExceptionMessage(L"Faild to get media type handler.");
 	}
-	// Get the major media type.
     GUID guidMajorType;
     if( FAILED(hr = pHandler->GetMajorType(&guidMajorType)) ) {
 		TVPThrowExceptionMessage(L"Faild to get major type.");
 	}
     CComPtr<IMFActivate>		pActivate;
 	if( MFMediaType_Audio == guidMajorType ) {
-		// Create the audio renderer.
         if( FAILED(hr = MFCreateAudioRendererActivate(&pActivate) )) {
 			TVPThrowExceptionMessage(L"Faild to create audio render.");
 		}
 	} else if( MFMediaType_Video == guidMajorType ) {
-		// Get FPS and frame size
 		CComPtr<IMFMediaType> pMediaType;
 		if( SUCCEEDED(hr = pHandler->GetCurrentMediaType(&pMediaType)) ) {
 			hr = MFGetAttributeRatio( pMediaType, MF_MT_FRAME_RATE, &FPSNumerator, &FPSDenominator );
@@ -580,13 +557,10 @@ HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, H
 					hr = S_OK;
 				}
 			}
-		} else {
-			// Create the video renderer.
-			if( FAILED(hr = MFCreateVideoRendererActivate(hVideoWindow, &pActivate) ) ) {
-				TVPThrowExceptionMessage(L"Faild to create video render.");
-			}
-			// ここでカスタムEVRをつなぐようにすると自前で色々描画できるようになる
-			// 現状は標準のものを使っている
+	} else {
+		if( FAILED(hr = MFCreateVideoRendererActivate(hVideoWindow, &pActivate) ) ) {
+			TVPThrowExceptionMessage(L"Faild to create video render.");
+		}
 #if 0
 			tTVPEVRCustomPresenter* my_activate_obj = new tTVPEVRCustomPresenter(hr);
 			my_activate_obj->AddRef();
@@ -603,7 +577,6 @@ HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, H
 		hr = E_FAIL;
 	}
 	if( SUCCEEDED(hr) && pActivate.p ) {
-		// Return IMFActivate pointer to caller.
 		*ppActivate = pActivate;
 		(*ppActivate)->AddRef();
 	}
@@ -611,12 +584,10 @@ HRESULT tTVPMFPlayer::CreateMediaSinkActivate( IMFStreamDescriptor *pSourceSD, H
 }
 HRESULT tTVPMFPlayer::AddSourceNode( IMFTopology *pTopology, IMFMediaSource *pSource, IMFPresentationDescriptor *pPD, IMFStreamDescriptor *pSD, IMFTopologyNode **ppNode ) {
 	HRESULT hr;
-	// Create the node.
 	CComPtr<IMFTopologyNode> pNode;
     if( FAILED(hr = MFCreateTopologyNode(MF_TOPOLOGY_SOURCESTREAM_NODE, &pNode)) ) {
 		TVPThrowExceptionMessage(L"Faild to create source node.");
 	}
-	// Set the attributes.
     if( FAILED(hr = pNode->SetUnknown(MF_TOPONODE_SOURCE, pSource) ) ) {
 		TVPThrowExceptionMessage(L"Faild to set source node.");
 	}
@@ -626,11 +597,9 @@ HRESULT tTVPMFPlayer::AddSourceNode( IMFTopology *pTopology, IMFMediaSource *pSo
 	if( FAILED(hr = pNode->SetUnknown(MF_TOPONODE_STREAM_DESCRIPTOR, pSD)) ) {
 		TVPThrowExceptionMessage(L"Faild to set stream desc.");
 	}
-	// Add the node to the topology.
     if( FAILED(hr = pTopology->AddNode(pNode)) ) {
 		TVPThrowExceptionMessage(L"Faild to add source node to topology.");
 	}
-	// Return the pointer to the caller.
     *ppNode = pNode;
     (*ppNode)->AddRef();
 
@@ -638,27 +607,22 @@ HRESULT tTVPMFPlayer::AddSourceNode( IMFTopology *pTopology, IMFMediaSource *pSo
 }
 HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFActivate *pActivate, DWORD dwId, IMFTopologyNode **ppNode ) {
 	HRESULT hr;
-    // Create the node.
     CComPtr<IMFTopologyNode> pNode;
     if( FAILED(hr = MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, &pNode)) ){
 		TVPThrowExceptionMessage(L"Faild to create output node.");
 	}
-    // Set the object pointer.
     if( FAILED(hr = pNode->SetObject(pActivate)) ) {
 		TVPThrowExceptionMessage(L"Faild to set activate.");
 	}
-    // Set the stream sink ID attribute.
     if( FAILED(hr = pNode->SetUINT32(MF_TOPONODE_STREAMID, dwId)) ) {
 		TVPThrowExceptionMessage(L"Faild to set stream id.");
 	}
 	if( FAILED(hr = pNode->SetUINT32(MF_TOPONODE_NOSHUTDOWN_ON_REMOVE, FALSE)) ) {
 		TVPThrowExceptionMessage(L"Faild to set no shutdown on remove.");
 	}
-    // Add the node to the topology.
     if( FAILED(hr = pTopology->AddNode(pNode)) ) {
 		TVPThrowExceptionMessage(L"Faild to add ouput node to topology.");
 	}
-    // Return the pointer to the caller.
     *ppNode = pNode;
     (*ppNode)->AddRef();
 
@@ -671,11 +635,9 @@ HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStr
     if( FAILED(hr = MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, &pNode)) ) {
 		TVPThrowExceptionMessage(L"Faild to create output node.");
 	}
-	// Set the object pointer.
 	if( FAILED(hr = pNode->SetObject(pStreamSink)) ) {
 		TVPThrowExceptionMessage(L"Faild to set stream sink.");
 	}
-	// Add the node to the topology.
 	if( FAILED(hr = pTopology->AddNode(pNode))) {
 		TVPThrowExceptionMessage(L"Faild to add output node.");
 	}
@@ -687,8 +649,6 @@ HRESULT tTVPMFPlayer::AddOutputNode( IMFTopology *pTopology, IMFStreamSink *pStr
 
 	return hr;
 }
-//----------------------------------------------------------------------------
-//! @brief	  	インターフェイスを解放する
 //----------------------------------------------------------------------------
 void __stdcall tTVPMFPlayer::ReleaseAll()
 {
@@ -849,8 +809,6 @@ void __stdcall tTVPMFPlayer::Stop() {
 	HRESULT hr = E_FAIL;
 	if( MediaSession.p ) {
 		hr = MediaSession->Stop();
-		//hr = MediaSession->Pause();
-		//StartPositionSpecify = false;
 	}
 	if( FAILED(hr) ) {
 		TVPThrowExceptionMessage(L"Faild to stop.");
@@ -860,7 +818,6 @@ void __stdcall tTVPMFPlayer::Pause() {
 	HRESULT hr = E_FAIL;
 	if( MediaSession.p ) {
 		hr = MediaSession->Pause();
-		//StartPositionSpecify = false;
 	}
 	if( FAILED(hr) ) {
 		TVPThrowExceptionMessage(L"Faild to stop.");

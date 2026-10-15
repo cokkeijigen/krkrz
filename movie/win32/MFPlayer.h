@@ -28,8 +28,8 @@ public:
 class tTVPMFPlayer : public iTVPVideoOverlay, public PlayWindow
 {
 protected:
-	static const MFTIME ONE_SECOND = 10000000; // One second.
-	static const LONG   ONE_MSEC = 1000;       // One millisecond
+	static const MFTIME ONE_SECOND = 10000000;
+	static const LONG   ONE_MSEC = 1000;
 
 	HWND		BuildWindow;
 	ULONG		RefCount;
@@ -81,11 +81,6 @@ protected:
 	std::deque<LONG_PTR>	EventQueue;
 
 	std::wstring		StreamName;
-	//IStream*			Stream;
-	//bool				StartPositionSpecify;
-	//__int64				StartPosition;
-	
-	//CDLLLoader MfDLL;
 	CDLLLoader MfplatDLL;
 
 protected:
@@ -108,7 +103,7 @@ protected:
 
 	template <class Q>
 	HRESULT GetCollectionObject(IMFCollection *pCollection, DWORD dwIndex, Q **ppObject) {
-		*ppObject = NULL;   // zero output
+		*ppObject = NULL;
 		IUnknown *pUnk = NULL;
 		HRESULT hr = pCollection->GetElement(dwIndex, &pUnk);
 		if( SUCCEEDED(hr) ) {

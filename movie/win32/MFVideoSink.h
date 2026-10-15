@@ -7,8 +7,11 @@
 	レイヤ描画なら映像がメインの描画デバイス経由で描かれるので overlay を
 	映像の上に合成できる。
 
-	入力は RGB32 固定で要求する。トポロジローダがデコーダと Video Processor MFT
-	(色変換・拡縮) を挟んでくれるので、常に RGB32 のフレームが届く。
+	入力は NV12 を要求する。H.264 デコーダの native 出力が NV12 なので、
+	RGB32 を要求するとトポロジローダが Video Processor MFT (色変換) を挿入し、
+	1440p で 1 フレーム 11ms かかって 60fps に届かなくなる。
+	NV12 のまま受け取って自前の SIMD 変換 (0.67ms) で BGRA に落とす。
+	デコーダが NV12 を出せない場合は RGB32 も受け付ける。
 
 -----------------------------------------------------------------------------
 *****************************************************************************/
@@ -50,6 +53,9 @@ private:
 	long	m_VideoWidth;
 	long	m_VideoHeight;
 	long	m_Stride;			//!< 負値なら下から上の DIB
+	bool	m_StrideGuessed;	//!< DEFAULT_STRIDE が無く幅から推定した (ならサンプル長で補正する)
+	bool	m_UseBT709;			//!< YUV→RGB のマトリクス。無印 HD は 709、SD は 601
+	GUID	m_InputSubtype;		//!< ProcessSample に届くデータの形式 (NV12 / RGB32)
 
 	bool	m_Shutdown;
 	bool	m_SamplePumpStarted;

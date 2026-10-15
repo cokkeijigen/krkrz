@@ -12,6 +12,7 @@
 
 #include <windows.h>
 #include <propvarutil.h>
+#include <stdlib.h>
 
 #include <Mfidl.h>
 #include <mfapi.h>
@@ -23,6 +24,7 @@
 
 #include "MFVideoSink.h"
 #include "MFPlayer.h"
+#include "MFVideoColor.h"
 
 //----------------------------------------------------------------------------
 tTVPMFVideoSink::tTVPMFVideoSink( tTVPMFPlayer *owner, UINT32 width, UINT32 height )
@@ -33,6 +35,9 @@ tTVPMFVideoSink::tTVPMFVideoSink( tTVPMFPlayer *owner, UINT32 width, UINT32 heig
    m_VideoWidth( (long)width ),
    m_VideoHeight( (long)height ),
    m_Stride( (long)(width * 4) ),
+   m_StrideGuessed( false ),
+   m_UseBT709( false ),
+   m_InputSubtype( kMFVideoFormat_NV12 ),
    m_Shutdown( false ),
    m_SamplePumpStarted( false ),
    m_AnchorValid( false ),
@@ -193,10 +198,7 @@ STDMETHODIMP tTVPMFVideoSink::GetMediaTypeHandler( IMFMediaTypeHandler **ppHandl
 	return GetInterface( static_cast<IMFMediaTypeHandler*>(this), (void**)ppHandler );
 }
 
-//----------------------------------------------------------------------------
-//! @brief エンジン側の Bitmap は「下から上」の並び (GetScanLine(y) が
-//! (Height - y - 1) * pitch を指す) なので、行を入れ替えてコピーする。
-//----------------------------------------------------------------------------
+//! 行を入れ替えて書き込む。エンジンの Bitmap は下から上なので dst が最終行を指す
 STDMETHODIMP tTVPMFVideoSink::ProcessSample( IMFSample *pSample )
 {
 	if( pSample == NULL ) return E_POINTER;
@@ -236,24 +238,49 @@ STDMETHODIMP tTVPMFVideoSink::ProcessSample( IMFSample *pSample )
 	}
 
 	long width = 0, height = 0, stride = 0;
+	GUID subtype = GUID_NULL;
+	bool strideGuessed = false, bt709 = false;
 	{
 		CAutoLock lock( &m_Lock );
 		width = m_VideoWidth;
 		height = m_VideoHeight;
 		stride = m_Stride;
+		subtype = m_InputSubtype;
+		strideGuessed = m_StrideGuessed;
+		bt709 = m_UseBT709;
 	}
 
 	const size_t dstPitch = (size_t)width * 4;
-	const size_t needed = dstPitch * (size_t)height;
-	if( src != NULL && stride != 0 && width > 0 && height > 0 &&
-		needed <= (size_t)destSize && needed <= (size_t)cbCurrentLength ) {
-		const size_t absStride = (size_t)( stride > 0 ? stride : -stride );
-		for( long y = 0; y < height; y++ ) {
-			const BYTE *s = ( stride > 0 )
-				? src + (size_t)y * absStride
-				: src + (size_t)( height - 1 - y ) * absStride;
-			BYTE *d = dest + (size_t)( height - 1 - y ) * dstPitch;
-			memcpy( d, s, dstPitch );
+	if( subtype == kMFVideoFormat_NV12 ) {
+		size_t absStride = (size_t)( stride > 0 ? stride : -stride );
+		if( strideGuessed && height > 0 && width > 0 ) {
+			// DEFAULT_STRIDE をくれないデコーダが幅より広く揃えていると
+			// stride=width のままだと横にずれて流れるのでバッファ長から逆算する
+			const size_t implied = (size_t)cbCurrentLength * 2 / ( (size_t)height * 3 );
+			if( implied > (size_t)width && implied <= (size_t)width + 256 &&
+				implied * (size_t)height * 3 / 2 == (size_t)cbCurrentLength ) {
+				absStride = implied;
+			}
+		}
+		const size_t needed = absStride * (size_t)height * 3 / 2;
+		if( src != NULL && absStride != 0 && width > 0 && height > 0 &&
+			needed <= (size_t)destSize && needed <= (size_t)cbCurrentLength ) {
+			// dest は「最終行の先頭」を指す
+			TVPConvertNV12ToBGRAFlip( src, src + absStride * (size_t)height, (long)absStride,
+				dest + dstPitch * (size_t)( height - 1 ), (long)dstPitch, width, height, stride < 0, bt709 );
+		}
+	} else {
+		const size_t needed = dstPitch * (size_t)height;
+		if( src != NULL && stride != 0 && width > 0 && height > 0 &&
+			needed <= (size_t)destSize && needed <= (size_t)cbCurrentLength ) {
+			const size_t absStride = (size_t)( stride > 0 ? stride : -stride );
+			for( long y = 0; y < height; y++ ) {
+				const BYTE *s = ( stride > 0 )
+					? src + (size_t)y * absStride
+					: src + (size_t)( height - 1 - y ) * absStride;
+				BYTE *d = dest + (size_t)( height - 1 - y ) * dstPitch;
+				memcpy( d, s, dstPitch );
+			}
 		}
 	}
 
@@ -473,13 +500,15 @@ HRESULT tTVPMFVideoSink::CreateVideoType( UINT32 width, UINT32 height, IMFMediaT
 	if( FAILED(hr) ) return hr;
 
 	if( FAILED(hr = pType->SetGUID( MF_MT_MAJOR_TYPE, MFMediaType_Video ) ) ) return hr;
-	if( FAILED(hr = pType->SetGUID( MF_MT_SUBTYPE, MFVideoFormat_RGB32 ) ) ) return hr;
+	// NV12 を直接要求する。RGB32 にするとトポロジローダがカラー変換 MFT を挟み、
+	// 1440p で一桁 ms / フレーム掛かる (ソフトウェア Video Processor)。
+	// デコーダの原生出力は NV12 なので、それをそのまま受けてこちらで変換する方が速い。
+	if( FAILED(hr = pType->SetGUID( MF_MT_SUBTYPE, kMFVideoFormat_NV12 ) ) ) return hr;
+	// ストライドはデコーダが決めるので DEFAULT_STRIDE は設定しない
 	if( FAILED(hr = pType->SetUINT64( MF_MT_FRAME_SIZE, ( (UINT64)width << 32 ) | (UINT64)height ) ) ) return hr;
 	if( FAILED(hr = pType->SetUINT64( MF_MT_PIXEL_ASPECT_RATIO, ( (UINT64)1 << 32 ) | (UINT64)1 ) ) ) return hr;
 	if( FAILED(hr = pType->SetUINT32( MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive ) ) ) return hr;
 	if( FAILED(hr = pType->SetUINT32( MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE ) ) ) return hr;
-	// 上から下の DIB
-	if( FAILED(hr = pType->SetUINT32( MF_MT_DEFAULT_STRIDE, width * 4 ) ) ) return hr;
 
 	*ppType = pType.Detach();
 	return S_OK;
@@ -515,7 +544,8 @@ STDMETHODIMP tTVPMFVideoSink::IsMediaTypeSupported( IMFMediaType *pMediaTypeIn, 
 	pMediaTypeIn->GetGUID( MF_MT_SUBTYPE, &subtype );
 	pMediaTypeIn->GetUINT64( MF_MT_FRAME_SIZE, &frameSize );
 
-	if( subtype == MFVideoFormat_RGB32 && frameSize == wantSize ) {
+	if( frameSize == wantSize &&
+		( subtype == kMFVideoFormat_NV12 || subtype == MFVideoFormat_RGB32 ) ) {
 		return S_OK;
 	}
 
@@ -542,11 +572,21 @@ STDMETHODIMP tTVPMFVideoSink::SetCurrentMediaType( IMFMediaType *pMediaType )
 		m_VideoHeight = (long)(UINT32)( frameSize & 0xffffffff );
 	}
 
-	// MF_MT_DEFAULT_STRIDE が無い場合は上から下 (正値) とみなす
-	UINT32 stride = (UINT32)( m_VideoWidth * 4 );
+	UINT32 stride = 0;
 	pMediaType->GetUINT32( MF_MT_DEFAULT_STRIDE, &stride );
 	m_Stride = (long)(INT32)stride;
-	if( m_Stride == 0 ) m_Stride = (long)( m_VideoWidth * 4 );
+	m_StrideGuessed = ( m_Stride == 0 );
+	if( m_StrideGuessed ) {
+		// DEFAULT_STRIDE をくれないデコーダがいる
+		GUID sub = GUID_NULL;
+		pMediaType->GetGUID( MF_MT_SUBTYPE, &sub );
+		m_Stride = ( sub == kMFVideoFormat_NV12 ) ? m_VideoWidth : m_VideoWidth * 4;
+	}
+	pMediaType->GetGUID( MF_MT_SUBTYPE, &m_InputSubtype );
+
+	// マトリクスの明示が無ければ解像度で推定する (HD=709 / SD=601)。
+	// MS の Video Processor も同じ推定をしていたので、これで従来の色に戻る
+	m_UseBT709 = ( m_VideoWidth >= 1280 || m_VideoHeight >= 720 );
 
 	UINT32 fpsNum = 0, fpsDen = 0;
 	UINT64 frameRate = 0;
@@ -632,9 +672,6 @@ STDMETHODIMP tTVPMFVideoSink::OnClockSetRate( MFTIME /*hnsSystemTime*/, float /*
 	return S_OK;
 }
 
-//----------------------------------------------------------------------------
-//! @brief 提示時計が動いていればそれを基準に、動いていなければ実時刻を基準に待つ。
-//----------------------------------------------------------------------------
 void tTVPMFVideoSink::WaitForPresentation( LONGLONG hnsSampleTime )
 {
 	MFTIME now = 0;
@@ -654,7 +691,7 @@ void tTVPMFVideoSink::WaitForPresentation( LONGLONG hnsSampleTime )
 		return;
 	}
 
-	// 時計が動いていないので実時刻を基準にする
+	// 時計が無いので実時刻で代用する
 	CAutoLock lock( &m_Lock );
 	const DWORD nowTick = ::GetTickCount();
 	if( !m_AnchorValid ) {
