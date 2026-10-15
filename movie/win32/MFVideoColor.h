@@ -2,12 +2,12 @@
 /*! @file
 @brief NV12 -> BGRA (下から上 DIB) 変換
 
-	エンジンのレイヤ Bitmap は BGRA・下から上の並び。MF の H.264 デコーダの
-	原生出力は NV12 なので、トポロジにカラー変換 MFT を挿させずこちらで変換する
+	エンジンのレイヤ Bitmap は BGRA・下から上。MF の H.264 デコーダの原生出力は
+	NV12 なので、トポロジにカラー変換 MFT を挿させずこちらで変換する
 	(マイクロソフトのソフトウェア Video Processor は 1440p で 11ms/フレーム掛かる)。
 
-	AVX2 / SSE2 / スカラの 3 バージョンがあり、係数と丸めを共用しているので
-	出力はビット単位で一致する。実行時は速いものから使う。
+	AVX2 / SSE2 / スカラの 3 バージョンは係数と丸めを共用しているので、
+	出力はビット単位で一致する。
 -----------------------------------------------------------------------------
 *****************************************************************************/
 #ifndef __MF_VIDEO_COLOR_H__
@@ -38,7 +38,6 @@ void TVPConvertNV12ToBGRAFlip_SSE2( const BYTE *srcY, const BYTE *srcUV, long yS
 void TVPConvertNV12ToBGRAFlip_AVX2( const BYTE *srcY, const BYTE *srcUV, long yStride,
 	BYTE *dst, long dstPitch, long width, long height, bool srcBottomUp, bool bt709 );
 
-//! 実行時ディスパッチ。AVX2 -> SSE2 -> スカラの順で速いものを使う
 void TVPConvertNV12ToBGRAFlip( const BYTE *srcY, const BYTE *srcUV, long yStride,
 	BYTE *dst, long dstPitch, long width, long height, bool srcBottomUp, bool bt709 );
 
