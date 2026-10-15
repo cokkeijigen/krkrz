@@ -78,7 +78,6 @@ void TVPConvertNV12ToBGRAFlip_Scalar( const BYTE *srcY, const BYTE *srcUV, long 
 	}
 }
 
-//! Y_FRAC の定義理由参照
 static __forceinline __m128i YContrib128( __m128i y16, const __m128i cyFrac, const __m128i cRound )
 {
 	return _mm_add_epi16( y16, _mm_srai_epi16(
@@ -101,14 +100,13 @@ void TVPConvertNV12ToBGRAFlip_SSE2( const BYTE *srcY, const BYTE *srcUV, long yS
 	const __m128i cgu	= _mm_set1_epi16( iCgu );
 	const __m128i cgv	= _mm_set1_epi16( iCgv );
 	const __m128i cbu	= _mm_set1_epi16( iCbu );
-	const __m128i aB	= _mm_set1_epi8( (char)0xFF );	// A チャンネル (8bit)
+	const __m128i aB	= _mm_set1_epi8( (char)0xFF );
 	const __m128i maskU	= _mm_set1_epi16( 0x00FF );
 
 	for( long y = 0; y < height; y++ ) {
 		const size_t srcRow = (size_t)( srcBottomUp ? ( height - 1 - y ) : y );
 		const BYTE *py  = srcY  + srcRow * absStride;
 		const BYTE *puv = srcUV + ( srcRow >> 1 ) * absStride;
-		// dst は最終行を指すので y 行目は引き算で遡る
 		BYTE *pd = dst - (size_t)y * dstPitch;
 
 		long x = 0;
@@ -154,10 +152,9 @@ void TVPConvertNV12ToBGRAFlip_SSE2( const BYTE *srcY, const BYTE *srcUV, long yS
 			__m128i gl = _mm_packus_epi16( g0, g1 );
 			__m128i rl = _mm_packus_epi16( r0, r1 );
 
-			// B,G のバイト対を作ってから unpacklo_epi16 で R,A を挟む
 			__m128i bg0 = _mm_unpacklo_epi8( bl, gl );
 			__m128i bg1 = _mm_unpackhi_epi8( bl, gl );
-			__m128i ra0 = _mm_unpacklo_epi8( rl, aB );	// R,A 対
+			__m128i ra0 = _mm_unpacklo_epi8( rl, aB );
 			__m128i ra1 = _mm_unpackhi_epi8( rl, aB );
 			_mm_storeu_si128( (__m128i*)( pd + x * 4 ),			_mm_unpacklo_epi16( bg0, ra0 ) );
 			_mm_storeu_si128( (__m128i*)( pd + x * 4 + 16 ),	_mm_unpackhi_epi16( bg0, ra0 ) );
@@ -191,7 +188,7 @@ void TVPConvertNV12ToBGRAFlip_AVX2( const BYTE *srcY, const BYTE *srcUV, long yS
 	const __m256i cgu	= _mm256_set1_epi16( iCgu );
 	const __m256i cgv	= _mm256_set1_epi16( iCgv );
 	const __m256i cbu	= _mm256_set1_epi16( iCbu );
-	const __m256i aB	= _mm256_set1_epi8( (char)0xFF );	// A チャンネル (8bit)
+	const __m256i aB	= _mm256_set1_epi8( (char)0xFF );
 	const __m256i maskU	= _mm256_set1_epi16( 0x00FF );
 
 	for( long y = 0; y < height; y++ ) {
