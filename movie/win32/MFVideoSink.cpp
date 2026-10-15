@@ -265,7 +265,6 @@ STDMETHODIMP tTVPMFVideoSink::ProcessSample( IMFSample *pSample )
 		const size_t needed = absStride * (size_t)height * 3 / 2;
 		if( src != NULL && absStride != 0 && width > 0 && height > 0 &&
 			needed <= (size_t)destSize && needed <= (size_t)cbCurrentLength ) {
-			// dest は「最終行の先頭」を指す
 			TVPConvertNV12ToBGRAFlip( src, src + absStride * (size_t)height, (long)absStride,
 				dest + dstPitch * (size_t)( height - 1 ), (long)dstPitch, width, height, stride < 0, bt709 );
 		}
