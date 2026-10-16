@@ -56,14 +56,16 @@ static bool TVPIsDSLayerMovieType( const wchar_t *type )
 //----------------------------------------------------------------------------
 void __stdcall GetVideoLayerObject(
 	HWND callbackwin, IStream *stream, const wchar_t * streamname,
-	const wchar_t *type, unsigned __int64 size, iTVPVideoOverlay **out)
+	const wchar_t *type, unsigned __int64 size, long layerWidth, long layerHeight,
+	iTVPVideoOverlay **out)
 {
 
 	if( !TVPIsDSLayerMovieType( type ) ) {
-		GetMFVideoLayerObject( callbackwin, stream, streamname, type, size, out );
+		GetMFVideoLayerObject( callbackwin, stream, streamname, type, size, layerWidth, layerHeight, out );
 		return;
 	}
 
+	// DirectShow 側は自前でレイヤに合わせるので大きさは渡さない
 	*out = new tTVPDSLayerVideo;
 
 	if( *out )

@@ -164,7 +164,13 @@ void tTJSNI_VideoOverlay::Open(const ttstr &_name)
 	{
 		{
 			if(Mode == vomLayer)
-				GetVideoLayerObject(EventQueue.GetOwner(), istream, name.c_str(), ext.c_str(), size, &VideoOverlay);
+			{
+				// 映像はこのレイヤへ 1:1 で描くので、スクリプトが決めたレイヤ座標系の大きさを渡す
+				long layerWidth  = Layer1 ? (long)Layer1->GetWidth()  : 0;
+				long layerHeight = Layer1 ? (long)Layer1->GetHeight() : 0;
+				GetVideoLayerObject(EventQueue.GetOwner(), istream, name.c_str(), ext.c_str(), size,
+					layerWidth, layerHeight, &VideoOverlay);
+			}
 			else if(Mode == vomMixer)
 				GetMixingVideoOverlayObject(EventQueue.GetOwner(), istream, name.c_str(), ext.c_str(), size, &VideoOverlay);
 			else if(Mode == vomMFEVR)

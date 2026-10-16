@@ -41,8 +41,8 @@
 
 
 //----------------------------------------------------------------------------
-//! @brief 映像サイズのままだとウィンドウからはみ出して切り取られるので、デコード側で
-//! 縮小してもらう。その基準になるクライアントサイズを最大の可視トップレベルウィンドウから取る。
+//! @brief レイヤ描画モードのとき、レイヤ座標系の大きさが分からなければ
+//! 最大の可視トップレベルウィンドウのクライアントサイズで代用する。
 //----------------------------------------------------------------------------
 namespace {
 	struct tTVPFindMainWindowContext {
@@ -101,12 +101,16 @@ void __stdcall GetMFVideoOverlayObject(
 //----------------------------------------------------------------------------
 void __stdcall GetMFVideoLayerObject(
 	HWND callbackwin, IStream *stream, const wchar_t * streamname,
-	const wchar_t *type, unsigned __int64 size, iTVPVideoOverlay **out)
+	const wchar_t *type, unsigned __int64 size, long layerWidth, long layerHeight,
+	iTVPVideoOverlay **out)
 {
-	*out = new tTVPMFPlayer(true);
+	tTVPMFPlayer *player = new tTVPMFPlayer(true);
+	*out = player;
 
-	if( *out )
-		static_cast<tTVPMFPlayer*>(*out)->BuildGraph( callbackwin, stream, streamname, type, size );
+	if( *out ) {
+		player->SetLayerCanvasSize( layerWidth, layerHeight );
+		player->BuildGraph( callbackwin, stream, streamname, type, size );
+	}
 }
 //----------------------------------------------------------------------------
 STDMETHODIMP tTVPPlayerCallback::NonDelegatingQueryInterface(REFIID riid,void **ppv) {
@@ -199,6 +203,8 @@ tTVPMFPlayer::tTVPMFPlayer(bool layerMode) {
 	LayerFrontIndex = 0;
 	LayerVideoWidth = 0;
 	LayerVideoHeight = 0;
+	LayerCanvasWidth = 0;
+	LayerCanvasHeight = 0;
 	VideoSink = NULL;
 	MediaSourceResolved = false;
 	EndedPosted = false;
@@ -259,13 +265,23 @@ void __stdcall tTVPMFPlayer::BuildGraph( HWND callbackwin, IStream *stream,
 		// レイヤ描画では SetWindow が呼ばれない。エンジンは BuildGraph の直後に
 		// GetVideoSize でレイヤの Bitmap を確保するので、先にサイズを知る必要がある。
 		ResolveVideoInfo();
-		long cw = 0, ch = 0;
-		if( TVPGetGameClientSize( &cw, &ch ) ) {
-			LayerVideoWidth = cw;
-			LayerVideoHeight = ch;
+		long w = LayerCanvasWidth, h = LayerCanvasHeight;
+		bool haveSize = ( w > 0 && h > 0 );
+		if( !haveSize ) haveSize = TVPGetGameClientSize( &w, &h );
+		if( haveSize ) {
+			// レイヤ座標系の大きさで受ける。クライアントサイズはズーム倍率が掛かった値なので、
+			// そのまま渡すと倍率ぶん小さく描かれて黒帯が残る。またこの幅がそのまま Bitmap の幅に
+			// なりピッチは 4 画素単位に切り上げられるので、揃えないと 1 行ごとにずれて斜めに潰れる。
+			LayerVideoWidth  = ( w + 3 ) & ~3;
+			LayerVideoHeight = ( h + 3 ) & ~3;
 		}
 		CreateVideoPlayer();
 	}
+}
+//----------------------------------------------------------------------------
+void tTVPMFPlayer::SetLayerCanvasSize( long width, long height ) {
+	LayerCanvasWidth = width;
+	LayerCanvasHeight = height;
 }
 //----------------------------------------------------------------------------
 HRESULT tTVPMFPlayer::ResolveMediaSource() {
@@ -452,7 +468,8 @@ HRESULT tTVPMFPlayer::CreateVideoPlayer() {
 	}
 	pPresentationDescriptor->GetUINT64(MF_PD_DURATION, (UINT64*)&HnsDuration);
 	
-	if( FAILED(hr = MediaSession->SetTopology( 0, Topology )) ) {
+	hr = MediaSession->SetTopology( 0, Topology );
+	if( FAILED(hr) ) {
 		TVPThrowExceptionMessage(L"Faild to set topology.");
 	}
 	return hr;

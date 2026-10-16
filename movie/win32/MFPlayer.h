@@ -71,6 +71,9 @@ protected:
 	int			LayerFrontIndex;
 	long		LayerVideoWidth;
 	long		LayerVideoHeight;
+	//! レイヤ座標系の大きさ。0 ならクライアントの画素サイズで代用する
+	long		LayerCanvasWidth;
+	long		LayerCanvasHeight;
 	tTVPMFVideoSink	*VideoSink;	//!< 参照カウントは自前で管理する
 	CCritSec	LayerLock;
 	bool		MediaSourceResolved;
@@ -149,6 +152,8 @@ public:
 	IMFMediaSession* GetMediaSession() { return MediaSession; }
 
 	// ---- tTVPMFVideoSink から呼ばれるレイヤ描画用インターフェイス ----
+	//! 映像を描く先のレイヤ座標系の大きさ。open の前に呼ぶ
+	void SetLayerCanvasSize( long width, long height );
 	bool GetLayerBackBuffer( BYTE **buff, long *size );
 	void PresentLayerFrame( LONGLONG hnsSampleTime );
 	void OnLayerVideoSizeChanged( long width, long height, UINT32 fpsNumerator, UINT32 fpsDenominator );

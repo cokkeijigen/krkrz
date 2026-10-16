@@ -6,9 +6,11 @@ extern void __stdcall GetVideoOverlayObject(
 	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
 	const wchar_t *type, unsigned __int64 size, class iTVPVideoOverlay **out);
 
+// レイヤ描画用は映像を描く先のレイヤ座標系の大きさも受け取る (クライアントの画素サイズではない)
 extern void __stdcall GetVideoLayerObject(
 	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
-	const wchar_t *type, unsigned __int64 size, class iTVPVideoOverlay **out);
+	const wchar_t *type, unsigned __int64 size, long layerWidth, long layerHeight,
+	class iTVPVideoOverlay **out);
 
 extern void __stdcall GetMixingVideoOverlayObject(
 	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
@@ -21,7 +23,8 @@ extern void __stdcall GetMFVideoOverlayObject(
 // レイヤ描画用 (デコード結果をエンジンの Bitmap へ書き出す)
 extern void __stdcall GetMFVideoLayerObject(
 	HWND callbackwin, struct IStream *stream, const wchar_t * streamname,
-	const wchar_t *type, unsigned __int64 size, class iTVPVideoOverlay **out);
+	const wchar_t *type, unsigned __int64 size, long layerWidth, long layerHeight,
+	class iTVPVideoOverlay **out);
 
 
 /*[*/
