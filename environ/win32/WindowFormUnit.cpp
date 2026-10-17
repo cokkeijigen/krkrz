@@ -519,9 +519,7 @@ void TTVPWindowForm::SetDrawDeviceDestRect()
 		destrect.right = destrect.left + w;
 		destrect.bottom = destrect.top + h;
 	} else {
-		destrect.left = destrect.top = 0;
-		destrect.right = w;
-		destrect.bottom = h;
+		destrect = TVPCalcViewportDestRect( Viewport, GetInnerWidth(), GetInnerHeight(), w, h );
 	}
 
 	if( LastSentDrawDeviceDestRect != destrect ) {
@@ -535,6 +533,10 @@ void TTVPWindowForm::SetDrawDeviceDestRect()
 		}
 		LastSentDrawDeviceDestRect = destrect;
 	}
+}
+void TTVPWindowForm::SetViewportConfig(const tTVPViewportConfig &cfg) {
+	Viewport = cfg;
+	SetDrawDeviceDestRect(); // 配置が変わったので DestRect を作り直す
 }
 void TTVPWindowForm::OnPaint() {
 	// a painting event
@@ -758,10 +760,20 @@ void TTVPWindowForm::SetFullScreenMode( bool b ) {
 			if(TVPFullScreenedWindow) TVPFullScreenedWindow->SetFullScreenMode(false);
 
 			// save position and size
-			OrgLeft = GetLeft();
-			OrgTop = GetTop();
-			OrgWidth = GetWidth();
-			OrgHeight = GetHeight();
+			// GetWindowRect() is the maximized rect (eg. -8,-8); use the restore rect
+			WINDOWPLACEMENT wp = { sizeof(WINDOWPLACEMENT) };
+			::GetWindowPlacement( GetHandle(), &wp );
+			if( wp.showCmd == SW_SHOWMAXIMIZED ) {
+				OrgLeft = wp.rcNormalPosition.left;
+				OrgTop = wp.rcNormalPosition.top;
+				OrgWidth = wp.rcNormalPosition.right - wp.rcNormalPosition.left;
+				OrgHeight = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
+			} else {
+				OrgLeft = GetLeft();
+				OrgTop = GetTop();
+				OrgWidth = GetWidth();
+				OrgHeight = GetHeight();
+			}
 
 			// determin desired full screen size
 			tjs_int desired_fs_w = GetInnerWidth();
@@ -841,13 +853,16 @@ void TTVPWindowForm::SetFullScreenMode( bool b ) {
 			SetZoom(ZoomNumer, ZoomDenom);  // reset zoom factor
 
 			// set BorderStyle
-			SetWindowLong(GetHandle(), GWL_STYLE, OrgStyle);
+			// OrgStyle keeps WS_MAXIMIZE if fullscreen was entered maximized;
+			// writing it back makes DWM draw a maximized caption frame
+			SetWindowLong(GetHandle(), GWL_STYLE, OrgStyle & ~WS_MAXIMIZE);
 			SetWindowLong(GetHandle(), GWL_EXSTYLE, OrgExStyle);
+			::ShowWindow( GetHandle(), SW_RESTORE );
 
 			// revert the position and size
 			SetBounds(OrgLeft, OrgTop, OrgWidth, OrgHeight);
 			SetInnerSize( OrgClientWidth, OrgClientHeight );
-			::SetWindowPos( GetHandle(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOREPOSITION|SWP_NOSIZE|SWP_SHOWWINDOW );
+			::SetWindowPos( GetHandle(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOREPOSITION|SWP_NOSIZE|SWP_SHOWWINDOW|SWP_FRAMECHANGED );
 
 			// re-adjust video rect
 			if(TJSNativeInstance) TJSNativeInstance->ReadjustVideoRect();
@@ -1125,20 +1140,33 @@ void TTVPWindowForm::SendCloseMessage() {
 	::PostMessage(GetHandle(), WM_CLOSE, 0, 0);
 }
 
+// ActualZoom misses the extra contain scaling; use the actual dest rect ratio
 void TTVPWindowForm::ZoomRectangle( tjs_int& left, tjs_int& top, tjs_int& right, tjs_int& bottom) {
-	left =   MulDiv(left  ,  ActualZoomNumer, ActualZoomDenom);
-	top =    MulDiv(top   ,  ActualZoomNumer, ActualZoomDenom);
-	right =  MulDiv(right ,  ActualZoomNumer, ActualZoomDenom);
-	bottom = MulDiv(bottom,  ActualZoomNumer, ActualZoomDenom);
+	tjs_int dw = LastSentDrawDeviceDestRect.get_width();
+	tjs_int dh = LastSentDrawDeviceDestRect.get_height();
+	if( LayerWidth > 0 && LayerHeight > 0 && dw > 0 && dh > 0 ) {
+		left   = MulDiv(left  , dw, LayerWidth);
+		top    = MulDiv(top   , dh, LayerHeight);
+		right  = MulDiv(right , dw, LayerWidth);
+		bottom = MulDiv(bottom, dh, LayerHeight);
+	} else {
+		left   = MulDiv(left  , ActualZoomNumer, ActualZoomDenom);
+		top    = MulDiv(top   , ActualZoomNumer, ActualZoomDenom);
+		right  = MulDiv(right , ActualZoomNumer, ActualZoomDenom);
+		bottom = MulDiv(bottom, ActualZoomNumer, ActualZoomDenom);
+	}
 }
-void TTVPWindowForm::GetVideoOffset(tjs_int &ofsx, tjs_int &ofsy) {
+void TTVPWindowForm::GetDrawAreaOffset(tjs_int &ofsx, tjs_int &ofsy) {
 	if( GetFullScreenMode() ) {
 		ofsx = FullScreenDestRect.left;
 		ofsy = FullScreenDestRect.top;
 	} else {
-		ofsx = 0;
-		ofsy = 0;
+		ofsx = LastSentDrawDeviceDestRect.left;
+		ofsy = LastSentDrawDeviceDestRect.top;
 	}
+}
+void TTVPWindowForm::GetVideoOffset(tjs_int &ofsx, tjs_int &ofsy) {
+	GetDrawAreaOffset(ofsx, ofsy);
 }
 /*
 HWND TTVPWindowForm::GetSurfaceWindowHandle() {
@@ -1549,23 +1577,23 @@ void TTVPWindowForm::OnKeyPress( WORD vk, int repeat, bool prevkeystate, bool co
 	}
 }
 void TTVPWindowForm::TranslateWindowToDrawArea(int &x, int &y) {
-	if( GetFullScreenMode() ) {
-		x -= FullScreenDestRect.left;
-		y -= FullScreenDestRect.top;
-	}
+	tjs_int ofsx, ofsy;
+	GetDrawAreaOffset(ofsx, ofsy);
+	x -= ofsx;
+	y -= ofsy;
 }
 
 void TTVPWindowForm::TranslateWindowToDrawArea(double&x, double &y) {
-	if( GetFullScreenMode() ) {
-		x -= FullScreenDestRect.left;
-		y -= FullScreenDestRect.top;
-	}
+	tjs_int ofsx, ofsy;
+	GetDrawAreaOffset(ofsx, ofsy);
+	x -= ofsx;
+	y -= ofsy;
 }
 void TTVPWindowForm::TranslateDrawAreaToWindow(int &x, int &y) {
-	if( GetFullScreenMode() ) {
-		x += FullScreenDestRect.left;
-		y += FullScreenDestRect.top;
-	}
+	tjs_int ofsx, ofsy;
+	GetDrawAreaOffset(ofsx, ofsy);
+	x += ofsx;
+	y += ofsy;
 }
 void TTVPWindowForm::FirePopupHide() {
 	// fire "onPopupHide" event
@@ -1781,6 +1809,8 @@ void TTVPWindowForm::OnResize( UINT_PTR state, int w, int h ) {
 	if( state == SIZE_MINIMIZED || state == SIZE_MAXSHOW || state == SIZE_MAXHIDE ) return;
 	// state == SIZE_RESTORED, SIZE_MAXIMIZED, 
 	// on resize
+	// a shrinking window may not get WM_PAINT, so don't rely on OnPaint alone
+	SetDrawDeviceDestRect();
 	if(TJSNativeInstance) {
 		// here specifies TVP_EPT_REMOVE_POST, to remove redundant onResize events.
 		TVPPostInputEvent( new tTVPOnResizeInputEvent(TJSNativeInstance), TVP_EPT_REMOVE_POST );

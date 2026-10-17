@@ -379,6 +379,13 @@ public:
 
 	void SetInnerSize(tjs_int w, tjs_int h);
 
+	void SetViewportFit(tjs_int fit);
+	tjs_int GetViewportFit() const;
+	void SetViewportAlignX(tjs_real v);
+	tjs_real GetViewportAlignX() const;
+	void SetViewportAlignY(tjs_real v);
+	tjs_real GetViewportAlignY() const;
+
 	void SetBorderStyle(tTVPBorderStyle st);
 	tTVPBorderStyle GetBorderStyle() const;
 

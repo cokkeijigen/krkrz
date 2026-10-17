@@ -5,6 +5,7 @@
 #include "tjsCommHead.h"
 #include "tvpinputdefs.h"
 #include "WindowIntf.h"
+#include "ViewportConfig.h"
 
 #include "TVPWindow.h"
 #include "MouseCursor.h"
@@ -169,6 +170,8 @@ private:
 	tjs_int ActualZoomDenom; // Zooming factor denominator (actual)
 	tjs_int ActualZoomNumer; // Zooming factor numerator (actual)
 
+	tTVPViewportConfig Viewport;
+
 	DWORD LastRecheckInputStateSent;
 
 	TouchPointList touch_points_;
@@ -184,6 +187,7 @@ private:
 	VelocityTracker MouseVelocityTracker;
 private:
 	void SetDrawDeviceDestRect();
+	void GetDrawAreaOffset(tjs_int &ofsx, tjs_int &ofsy);
 	void TranslateWindowToDrawArea(int &x, int &y);
 	void TranslateWindowToDrawArea(double&x, double &y);
 	void TranslateDrawAreaToWindow(int &x, int &y);
@@ -289,6 +293,9 @@ public:
 	
 	void ZoomRectangle( tjs_int & left, tjs_int & top, tjs_int & right, tjs_int & bottom);
 	void GetVideoOffset(tjs_int &ofsx, tjs_int &ofsy);
+
+	void SetViewportConfig(const tTVPViewportConfig &cfg);
+	const tTVPViewportConfig &GetViewportConfig() const { return Viewport; }
 
 	HWND GetSurfaceWindowHandle() { return GetHandle(); }
 	HWND GetWindowHandle() { return GetHandle(); }

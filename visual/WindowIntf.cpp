@@ -24,6 +24,7 @@
 #include "LayerManager.h"
 #include "BasicDrawDevice.h"
 #include "EventImpl.h"
+#include "ViewportConfig.h"
 
 #include "Application.h"
 
@@ -741,6 +742,29 @@ bool tTJSNI_BaseWindow::GetWaitVSync() const
 
 
 
+
+//---------------------------------------------------------------------------
+// ビューポート fit 名 ⇔ tTVPViewportFit 変換
+//---------------------------------------------------------------------------
+static tjs_int TVPViewportFitFromString(const ttstr &s)
+{
+	if(s == TJS_W("contain")) return vfContain;
+	if(s == TJS_W("cover"))   return vfCover;
+	if(s == TJS_W("fill"))    return vfFill;
+	if(s == TJS_W("integer")) return vfInteger;
+	return vfNone;
+}
+static const tjs_char * TVPViewportFitToString(tjs_int f)
+{
+	switch(f) {
+	case vfContain: return TJS_W("contain");
+	case vfCover:   return TJS_W("cover");
+	case vfFill:    return TJS_W("fill");
+	case vfInteger: return TJS_W("integer");
+	case vfNone:
+	default:        return TJS_W("none");
+	}
+}
 
 //---------------------------------------------------------------------------
 // tTJSNC_Window : TJS Window class
@@ -1895,6 +1919,66 @@ TJS_BEGIN_NATIVE_PROP_DECL(waitVSync)
 	TJS_END_NATIVE_PROP_SETTER
 }
 TJS_END_NATIVE_PROP_DECL(waitVSync)
+//---------------------------------------------------------------------------
+TJS_BEGIN_NATIVE_PROP_DECL(viewportFit)
+{
+	TJS_BEGIN_NATIVE_PROP_GETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		*result = ttstr(TVPViewportFitToString(_this->GetViewportFit()));
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_GETTER
+
+	TJS_BEGIN_NATIVE_PROP_SETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		_this->SetViewportFit(TVPViewportFitFromString(ttstr(*param)));
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_SETTER
+}
+TJS_END_NATIVE_PROP_DECL(viewportFit)
+//---------------------------------------------------------------------------
+TJS_BEGIN_NATIVE_PROP_DECL(viewportAlignX)
+{
+	TJS_BEGIN_NATIVE_PROP_GETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		*result = (tjs_real)_this->GetViewportAlignX();
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_GETTER
+
+	TJS_BEGIN_NATIVE_PROP_SETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		_this->SetViewportAlignX((double)(tjs_real)*param);
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_SETTER
+}
+TJS_END_NATIVE_PROP_DECL(viewportAlignX)
+//---------------------------------------------------------------------------
+TJS_BEGIN_NATIVE_PROP_DECL(viewportAlignY)
+{
+	TJS_BEGIN_NATIVE_PROP_GETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		*result = (tjs_real)_this->GetViewportAlignY();
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_GETTER
+
+	TJS_BEGIN_NATIVE_PROP_SETTER
+	{
+		TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Window);
+		_this->SetViewportAlignY((double)(tjs_real)*param);
+		return TJS_S_OK;
+	}
+	TJS_END_NATIVE_PROP_SETTER
+}
+TJS_END_NATIVE_PROP_DECL(viewportAlignY)
 //---------------------------------------------------------------------------
 TJS_BEGIN_NATIVE_PROP_DECL(layerTreeOwnerInterface)
 {

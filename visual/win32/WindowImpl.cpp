@@ -1716,6 +1716,48 @@ void tTJSNI_Window::SetInnerSize(tjs_int w, tjs_int h)
 	if(Form) Form->SetInnerSize(w, h);
 }
 //---------------------------------------------------------------------------
+void tTJSNI_Window::SetViewportFit(tjs_int fit)
+{
+	if(!Form) return;
+	tTVPViewportConfig c = Form->GetViewportConfig();
+	c.fit = (tTVPViewportFit)fit;
+	Form->SetViewportConfig(c);
+}
+//---------------------------------------------------------------------------
+tjs_int tTJSNI_Window::GetViewportFit() const
+{
+	if(!Form) return (tjs_int)vfNone;
+	return (tjs_int)Form->GetViewportConfig().fit;
+}
+//---------------------------------------------------------------------------
+void tTJSNI_Window::SetViewportAlignX(tjs_real v)
+{
+	if(!Form) return;
+	tTVPViewportConfig c = Form->GetViewportConfig();
+	c.alignX = v;
+	Form->SetViewportConfig(c);
+}
+//---------------------------------------------------------------------------
+tjs_real tTJSNI_Window::GetViewportAlignX() const
+{
+	if(!Form) return 0.0;
+	return Form->GetViewportConfig().alignX;
+}
+//---------------------------------------------------------------------------
+void tTJSNI_Window::SetViewportAlignY(tjs_real v)
+{
+	if(!Form) return;
+	tTVPViewportConfig c = Form->GetViewportConfig();
+	c.alignY = v;
+	Form->SetViewportConfig(c);
+}
+//---------------------------------------------------------------------------
+tjs_real tTJSNI_Window::GetViewportAlignY() const
+{
+	if(!Form) return 0.0;
+	return Form->GetViewportConfig().alignY;
+}
+//---------------------------------------------------------------------------
 void tTJSNI_Window::SetBorderStyle(tTVPBorderStyle st)
 {
 	FullScreenGuard();
