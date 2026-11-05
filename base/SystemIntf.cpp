@@ -137,11 +137,41 @@ TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/initAchievementSystem)
 TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/initAchievementSystem)
 
 //----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/uninitAchievementSystem)
+{
+	return achievement_tjs::uninit_achievement_system(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/uninitAchievementSystem)
+
+//----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/setAchievement)
 {
 	return achievement_tjs::set_achievement(result, numparams, param, objthis);
 }
 TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/setAchievement)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/queryAchievement)
+{
+	return achievement_tjs::query_achievement(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/queryAchievement)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/countAchievements)
+{
+	return achievement_tjs::achievement_count(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/countAchievements)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/getAchievements)
+{
+	return achievement_tjs::get_achievements(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/getAchievements)
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/getAchievement)
+{
+	return achievement_tjs::get_achievement(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL(/*func. name*/getAchievement)
 /*[end extension_tjs]=========================================================================*/
 
 //----------------------------------------------------------------------
