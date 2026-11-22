@@ -1,4 +1,4 @@
-
+﻿
 #ifndef __T_APPLICATION_H__
 #define __T_APPLICATION_H__
 
@@ -173,7 +173,7 @@ inline HINSTANCE GetHInstance() { return ((HINSTANCE)GetModuleHandle(0)); }
 extern class tTVPApplication* Application;
 
 //---------------------------------------------------------------------------
-// Steam オーバーレイ対策のグローバル (定義: Application.cpp、登録: achievement_tjs.cpp)。
+// Steam オーバーレイ対策のグローバル (定義: Application.cpp、登録: steam_helper_tjs.cpp)。
 //   非 Steam ビルドではコンパイル対象外。
 //---------------------------------------------------------------------------
 #ifdef __HAS_STEAM_API__

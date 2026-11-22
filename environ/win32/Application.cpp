@@ -1,4 +1,4 @@
-#define INITGUID // XP 有効にするとdxguid.libが使用できないため
+﻿#define INITGUID // XP 有効にするとdxguid.libが使用できないため
 #include "tjsCommHead.h"
 
 #include <algorithm>
@@ -551,7 +551,7 @@ void tTVPApplication::ShowException( const wchar_t* e ) {
 }
 //---------------------------------------------------------------------------
 // Steam オーバーレイ対策: アイドル中もコールバックを回し 10ms で起床させる。
-// 登録は extension/achievement_tjs.cpp。
+// 登録は extension/steam_helper_tjs.cpp。
 //---------------------------------------------------------------------------
 #ifdef __HAS_STEAM_API__
 bool TVPPeriodicIdleWake = false;

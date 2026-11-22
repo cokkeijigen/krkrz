@@ -1,4 +1,4 @@
-
+﻿
 #define NOMINMAX
 #include "tjsCommHead.h"
 #include "DrawDevice.h"
@@ -17,7 +17,7 @@
 #include <math.h>
 #include "GPUComposite.h"
 
-// Steam オーバーレイ (Shift+Tab) の状態 (extension/achievement_tjs.cpp が更新)。
+// Steam オーバーレイ (Shift+Tab) の状態 (extension/steam_helper_tjs.cpp が更新)。
 #include "steam_overlay_state.h"
 
 #include <d3d9.h>
