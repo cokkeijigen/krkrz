@@ -104,7 +104,8 @@ namespace winfont
 			(
 				(ch >= 0x3040 && ch <= 0x30FF) || (ch >= 0x3400 && ch <= 0x9FFF) ||
 				(ch >= 0xAC00 && ch <= 0xD7AF) || (ch >= 0xF900 && ch <= 0xFAFF)
-			){
+			)
+			{
 				++cjk_count;
 			}
 			else if 
@@ -409,7 +410,7 @@ namespace winfont
 	
 	static auto get_font_face_name(const std::wstring& font_path) -> std::wstring
 	{
-		const HANDLE hFile = ::CreateFileW
+		const HANDLE hFile{ ::CreateFileW
 		(
 			font_path.c_str(),
 			GENERIC_READ,
@@ -418,7 +419,7 @@ namespace winfont
 			OPEN_EXISTING,
 			FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
 			nullptr
-		);
+		)};
 
 		if (hFile == INVALID_HANDLE_VALUE) 
 		{
@@ -553,13 +554,13 @@ namespace winfont
 		}
 
 		DWORD font_count{ 0 };
-		const HANDLE handle = ::AddFontMemResourceEx
+		const HANDLE handle{ ::AddFontMemResourceEx
 		(
 			data.data(),
 			static_cast<DWORD>(data.size()),
 			nullptr,
 			&font_count
-		);
+		)};
 
 		if (handle == nullptr)
 		{
@@ -620,7 +621,7 @@ namespace winfont
 
 		if (as_memory)
 		{
-			const HANDLE hFile = ::CreateFileW
+			const HANDLE hFile{ ::CreateFileW
 			(
 				font_path.c_str(),
 				GENERIC_READ,
@@ -629,7 +630,7 @@ namespace winfont
 				OPEN_EXISTING,
 				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
 				nullptr
-			);
+			)};
 
 			if (hFile == INVALID_HANDLE_VALUE)
 			{
@@ -667,13 +668,13 @@ namespace winfont
 			}
 
 			DWORD font_count{ 0 };
-			const HANDLE handle = ::AddFontMemResourceEx
+			const HANDLE handle{ ::AddFontMemResourceEx
 			(
 				file_data.data(),
 				static_cast<DWORD>(file_data.size()),
 				nullptr,
 				&font_count
-			);
+			)};
 
 			if (handle == nullptr)
 			{
@@ -742,7 +743,7 @@ namespace winfont
 					}
 					else
 					{
-						::RemoveFontResourceExW(winfont::FONTS[i].path.c_str(), FR_PRIVATE, NULL);
+						::RemoveFontResourceExW(winfont::FONTS[i].path.c_str(), FR_PRIVATE, nullptr);
 					}
 
 					removed_index = i;
@@ -789,7 +790,7 @@ namespace winfont
 					::RemoveFontMemResourceEx(e.handle);
 					continue;
 				}
-				::RemoveFontResourceExW(e.path.c_str(), FR_PRIVATE, NULL);
+				::RemoveFontResourceExW(e.path.c_str(), FR_PRIVATE, nullptr);
 			}
 			winfont::FONTS = {};
 		}

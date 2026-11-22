@@ -6,7 +6,7 @@
 namespace language_tjs
 {
 
-	auto TJS_INTF_METHOD get_language(tTJSVariant* result, tjs_int, tTJSVariant**, iTJSDispatch2*) noexcept -> tjs_error 
+	auto TJS_INTF_METHOD get_language(tTJSVariant* result, tjs_int, tTJSVariant**, iTJSDispatch2*) noexcept -> tjs_error
 	{
 		if (result != nullptr) 
 		{
@@ -18,7 +18,12 @@ namespace language_tjs
 			{
 			case LANG_CHINESE: 
 			{
-				if (sub_lang == SUBLANG_CHINESE_SIMPLIFIED || sub_lang == SUBLANG_CHINESE_SINGAPORE)
+				const bool is_simplified
+				{
+					sub_lang == SUBLANG_CHINESE_SIMPLIFIED ||
+					sub_lang == SUBLANG_CHINESE_SINGAPORE
+				};
+				if (is_simplified)
 				{
 					*result = TJS_W("schinese");
 				}

@@ -143,16 +143,16 @@ namespace font_register_tjs
 					if (in != nullptr)
 					{
 						ttstr temp{ ::TVPGetTemporaryName() };
-						const HANDLE hFile = ::CreateFileW
+						const HANDLE hFile{ ::CreateFileW
 						(
 							temp.c_str(),
 							GENERIC_WRITE,
 							FILE_SHARE_READ,
-							NULL,
+							nullptr,
 							CREATE_ALWAYS,
 							FILE_ATTRIBUTE_NORMAL,
-							NULL
-						);
+							nullptr
+						)};
 
 						if (hFile != INVALID_HANDLE_VALUE)
 						{
@@ -162,7 +162,7 @@ namespace font_register_tjs
 							DWORD size{};
 							while (in->Read(buffer.data(), buffer.size(), &size) == S_OK && size > 0)
 							{
-								::WriteFile(hFile, buffer.data(), size, &size, NULL);
+								::WriteFile(hFile, buffer.data(), size, &size, nullptr);
 							}
 
 							::CloseHandle(hFile);
