@@ -332,7 +332,7 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/extension/font_register.cpp"
 	"${SOURCE_ROOT}/extension/font_register_tjs.cpp"
 	"${SOURCE_ROOT}/extension/language_tjs.cpp"
-	"${SOURCE_ROOT}/extension/achievement_tjs.cpp"
+	"${SOURCE_ROOT}/extension/steam_helper_tjs.cpp"
 
 )
 

@@ -6,6 +6,7 @@
 #include <EventIntf.h>
 #include <StorageImpl.h>
 #include <DebugIntf.h>
+#include <tjsNative.h>
 
 namespace language_tjs
 {
@@ -19,15 +20,10 @@ namespace font_register_tjs
 	extern auto TJS_INTF_METHOD get_private_font_name(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2*   objthis) noexcept -> tjs_error;
 }
 
-namespace achievement_tjs 
+namespace storages_tjs
 {
-	extern auto TJS_INTF_METHOD   init_achievement_system(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD uninit_achievement_system(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD   set_achievement(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD query_achievement(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD   get_achievement(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD  get_achievements(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
-	extern auto TJS_INTF_METHOD achievement_count(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
+	extern auto TJS_INTF_METHOD select_folder(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
+	extern auto TJS_INTF_METHOD create_folders(tTJSVariant* result, tjs_int numparams, tTJSVariant** param, iTJSDispatch2* objthis) noexcept -> tjs_error;
 }
 
 #endif
