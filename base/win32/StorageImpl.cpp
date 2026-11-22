@@ -20,6 +20,7 @@
 #include "GraphicsLoaderImpl.h"
 #include "SysInitIntf.h"
 #include "DebugIntf.h"
+#include "extension_tjs.hpp"
 #include "Random.h"
 #include "XP3Archive.h"
 #include "SusieArchive.h"
@@ -1118,7 +1119,6 @@ tTJSNativeClass * TVPCreateNativeClass_Storages()
 {
 	tTJSNC_Storages *cls = new tTJSNC_Storages();
 
-
 	// setup some platform-specific members
 //----------------------------------------------------------------------
 
@@ -1167,6 +1167,20 @@ TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/selectFile)
 }
 TJS_END_NATIVE_STATIC_METHOD_DECL_OUTER(/*object to register*/cls,
 	/*func. name*/selectFile)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/selectFolder)
+{
+	return storages_tjs::select_folder(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL_OUTER(/*object to register*/cls,
+	/*func. name*/selectFolder)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/createFolders)
+{
+	return storages_tjs::create_folders(result, numparams, param, objthis);
+}
+TJS_END_NATIVE_STATIC_METHOD_DECL_OUTER(/*object to register*/cls,
+	/*func. name*/createFolders)
 //----------------------------------------------------------------------
 
 
