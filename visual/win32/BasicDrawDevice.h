@@ -3,7 +3,10 @@
 #define BASIC_DRAW_DEVICE_H
 
 #include "DrawDevice.h"
+#include "GPUComposite.h"
 #include <d3d9.h>
+#include <map>
+#include <vector>
 
 //---------------------------------------------------------------------------
 //! @brief		「Basic」デバイス(もっとも基本的な描画を行うのみのデバイス)
@@ -33,6 +36,42 @@ class tTVPBasicDrawDevice : public tTVPDrawDevice
 	bool ShouldShow; //!< show で実際に画面に画像を転送すべきか
 
 	tjs_uint VsyncInterval;
+
+	//---- GPU 合成 (-gcomp)
+	struct tLayerTex
+	{
+		IDirect3DTexture9 * Tex;
+		void * BmpId;		//!< 転送済みビットマップ同一性
+		tjs_int W, H;
+	};
+	std::map<void *, tLayerTex> LayerTexCache;	//!< レイヤ -> テクスチャ
+	std::vector<TVPGPUQuad> LastQuads;			//!< 最後に描いた quad (静止フレーム再描画用)
+	bool LastFrameGPU;							//!< 直前フレームを GPU で描いたか
+	iTVPLayerManager * RenderManager;			//!< 現在の合成のマネージャ (グループ参照用)
+
+	//! レイヤ座標系 (1920x1080 等) で 1:1 合成するオフスクリーン面。
+	//! これを一度だけクライアントへ縮小転送する (CPU 合成と同じ経路)
+	IDirect3DTexture9 * GPUTargetTex;
+	IDirect3DSurface9 * GPUTargetSurf;
+	tjs_int GPUTargetW, GPUTargetH;
+	//! 半透明グループを一時合成する面 (CPU の temp bitmap 相当)
+	IDirect3DTexture9 * GPUScratchTex;
+	IDirect3DSurface9 * GPUScratchSurf;
+
+	void ReleaseGPUTarget();
+	bool EnsureGPUTarget(tjs_int w, tjs_int h);
+
+	void ReleaseLayerTexCache();
+	void UpdateLayerTexture(const TVPGPUQuad & q);
+	bool DrawGPUQuadRange(std::vector<TVPGPUQuad> & quads, int from, int to,
+		IDirect3DSurface9 * target, float scalex, float scaley, int group, bool clearTarget);
+	//! グループを DFS 順に合成する。group==-1 の quad は直接 target へ、
+	//! 子グループは一時サーフェスへ合成してから opacity を 1 回掛けて target へ重ねる。
+	bool DrawGPUQuadsComposite(std::vector<TVPGPUQuad> & quads, int from, int to,
+		IDirect3DSurface9 * target, float scalex, float scaley,
+		const std::vector<TVPGPUGroup> & groups, bool clearTarget);
+	bool RenderGPUQuads(std::vector<TVPGPUQuad> & quads, bool updateTextures = true);
+	bool GPUFrameFailed;	//!< このフレームの GPU 合成が失敗 (CPU へフォールバック)
 
 public:
 	tTVPBasicDrawDevice(); //!< コンストラクタ
@@ -66,6 +105,11 @@ private:
 
 public:
 	void SetToRecreateDrawer() { DestroyD3DDevice(); }
+
+	//! 指定レイヤのキャッシュ済みテクスチャを破棄 (レイヤ破棄時 / デバイス再生成時)
+	void PurgeLayerTexture(void * layer);
+	//! GPU 合成を実行できる状態か
+	bool IsGPUReady() const;
 
 #ifdef __HAS_STEAM_API__
 	// SteamAPI_Init 後に既存デバイスを作り直す (overlay の D3D フックは

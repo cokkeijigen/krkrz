@@ -27,6 +27,8 @@
 #include "DebugIntf.h"
 #include "LayerManager.h"
 #include "BitmapIntf.h"
+#include "win32/PresentDiag.h"
+#include "win32/GPUComposite.h"
 
 #include "TVPColor.h"
 #include "TVPSysFont.h"
@@ -286,6 +288,8 @@ void TVPTempBitmapHolderRelease()
 //---------------------------------------------------------------------------
 // global options
 //---------------------------------------------------------------------------
+// gsotSimple 8px stripes は実測でgsotNone の 2.4 倍速い (COMP p50 5.6ms vs 13.7ms)。
+// メモリ帯域が律速の合成ではキャッシュブロッキングとして機能している。-gsplit で切替可。
 tTVPGraphicSplitOperationType TVPGraphicSplitOperationType = gsotSimple;
 bool TVPDefaultHoldAlpha = false;
 //---------------------------------------------------------------------------
@@ -375,6 +379,7 @@ tTJSNI_BaseLayer::tTJSNI_BaseLayer()
 	Face = dfAuto;
 	UpdateDrawFace();
 	ImageModified = false;
+	SubpixelMotion = false;
 	HoldAlpha = TVPDefaultHoldAlpha;
 	ClipRect.left = 0;
 	ClipRect.right = 0;
@@ -394,6 +399,12 @@ tTJSNI_BaseLayer::tTJSNI_BaseLayer()
 	TransSrcObj = NULL;
 	InTransition = false;
 	TransWithChildren = false;
+	GPUSmoothX.Pos = 0.0f; GPUSmoothX.Last = 0; GPUSmoothX.Vel = 0.0f;
+	GPUSmoothX.LastFrame = 0; GPUSmoothX.HistHead = 0; GPUSmoothX.HistN = 0;
+	GPUSmoothX.Init = false;
+	GPUSmoothY = GPUSmoothX;
+	GPUSmoothIX = GPUSmoothX;
+	GPUSmoothIY = GPUSmoothX;
 	DestSLP = NULL;
 	SrcSLP = NULL;
 	TransCompEventPrevented = false;
@@ -415,6 +426,8 @@ tTJSNI_BaseLayer::tTJSNI_BaseLayer()
 //---------------------------------------------------------------------------
 tTJSNI_BaseLayer::~tTJSNI_BaseLayer()
 {
+	// GPU 合成のテクスチャキャッシュはレイヤポインタをキーにしている
+	TVPGPUCompositeOnLayerDestroyed(this);
 	tTVPTempBitmapHolder::Release();
 }
 //---------------------------------------------------------------------------
@@ -1899,6 +1912,23 @@ void tTJSNI_BaseLayer::InternalSetBounds(const tTVPRect &rect)
 	InternalSetSize(width, height);
 }
 //---------------------------------------------------------------------------
+// 位置更新の実測用 (TVP_POSDIAG=出力先)。1 フレームで何 px 動いたかを見る
+static void TVPPosDiag(const void * layer, tjs_int left, tjs_int top, tjs_int w, tjs_int h)
+{
+	static int state = -1;
+	static FILE * fp = NULL;
+	if(state < 0)
+	{
+		char path[512] = {0};
+		state = ::GetEnvironmentVariableA("TVP_POSDIAG", path, 480) > 0 ? 1 : 0;
+		if(state) fp = fopen(path, "w");
+	}
+	if(!fp) return;
+	fprintf(fp, "P %.3f %p %d %d %d %d\n",
+		PresentDiag::NowMs() / 1000.0, layer, left, top, w, h);
+	fflush(fp);
+}
+//---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::SetLeft(tjs_int left)
 {
 	if(Rect.left != left)
@@ -1915,6 +1945,7 @@ void tTJSNI_BaseLayer::SetLeft(tjs_int left)
 		// TODO: SetLeft
 		if(visible) ParentUpdate();
 	}
+	TVPPosDiag(this, Rect.left, Rect.top, Rect.get_width(), Rect.get_height());
 }
 //---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::SetTop(tjs_int top)
@@ -1933,6 +1964,7 @@ void tTJSNI_BaseLayer::SetTop(tjs_int top)
 		// TODO: SetTop;
 		if(visible) ParentUpdate();
 	}
+	TVPPosDiag(this, Rect.left, Rect.top, Rect.get_width(), Rect.get_height());
 }
 //---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::SetPosition(tjs_int left, tjs_int top)
@@ -1948,6 +1980,7 @@ void tTJSNI_BaseLayer::SetPosition(tjs_int left, tjs_int top)
 		// TODO: SetPosition
 		if(visible) ParentUpdate();
 	}
+	TVPPosDiag(this, Rect.left, Rect.top, Rect.get_width(), Rect.get_height());
 }
 //---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::SetWidth(tjs_uint width)
@@ -5360,7 +5393,12 @@ void tTJSNI_BaseLayer::BltImage(tTVPBaseBitmap *dest, tTVPLayerType destlayertyp
 		return;
 	}
 
+	tjs_int blt_area = srcrect.get_width() * srcrect.get_height();
+	double t0 = PresentDiag::NowMs();
 	dest->Blt(destx, desty, src, srcrect, met, opacity, hda);
+	if(blt_area >= 200000)
+		PresentDiag::Emit("BLT", t0, "ms=%.3f a=%d m=%d",
+			PresentDiag::NowMs() - t0, blt_area, static_cast<int>(met));
 }
 //---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::DrawSelf(tTVPDrawable *target, tTVPRect &pr,
@@ -6076,11 +6114,310 @@ void tTJSNI_BaseLayer::InternalComplete(tTVPComplexRect & updateregion,
 	AfterCompletion();
 }
 //---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+// GPU quad 合成: ツリーを quad リストへ展開する
+//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+// 整数階段を等速運動へ再構成する。直近 16 サンプルを表示フレーム番号で
+// 回帰して速度 (px/表示フレーム) を出し、その速度で積分する。
+// 実時間や「呼び出し回数」を基準にすると、合成が 1 フレームに 2 回走る
+// ことがあるため進み量が 4ms/12ms でムラになり、ガタつく。
+// 表示フレーム (Show ごとに +1) を基準にすれば必ず均等になる。
+//---------------------------------------------------------------------------
+static float TVPGPUSmoothAxisStep(tTVPGPUSmoothAxis & a, tjs_int target, int frame)
+{
+	const float t = (float)target;
+	if(!TVPGPUSmoothEnabled()) return t;
+	if(!a.Init)
+	{
+		a.Pos = t;
+		a.Vel = 0.0f;
+		a.Init = true;
+		a.Last = target;
+		a.LastFrame = frame;
+		a.HistHead = 0;
+		a.HistN = 0;
+		for(int i = 0; i < 16; i++) { a.HistX[i] = frame; a.HistY[i] = t; }
+		return a.Pos;
+	}
+
+	const int df = frame - a.LastFrame;
+	if(df <= 0) return a.Pos;		// 同一表示フレーム内の重複合成
+	a.LastFrame = frame;
+
+	const int dTarget = target - a.Last;
+	// 2px 以上の段差は「量子化の階段」ではなく、ホバー/カット/早送りのような
+	// 意図した瞬間移動。補間すると UI が滑って動いて見えるので即追従する。
+	// 補間対象は 1px ずつしか動かない遅い運動 (CG のパン等) だけに限る
+	if(dTarget >= 2 || dTarget <= -2)
+	{
+		a.Pos = t;
+		a.Vel = 0.0f;
+		a.Last = target;
+		a.HistHead = 0;
+		a.HistN = 0;
+		for(int i = 0; i < 16; i++) { a.HistX[i] = frame; a.HistY[i] = t; }
+		return a.Pos;
+	}
+	// 直前の速度と逆向きに 2px 以上動いた = 新しい区間の始まり。
+	// 履歴を残すと速度推定が逆符号に汚染され、1 フレーム逆行して見える
+	if(dTarget != 0 && (dTarget >= 2 || dTarget <= -2) && a.Vel * (float)dTarget < 0.0f)
+	{
+		a.Vel = 0.0f;
+		a.HistHead = 0;
+		a.HistN = 0;
+		for(int i = 0; i < 16; i++) { a.HistX[i] = frame; a.HistY[i] = t; }
+	}
+	a.Last = target;
+
+	a.HistX[a.HistHead] = frame;
+	a.HistY[a.HistHead] = t;
+	a.HistHead = (a.HistHead + 1) & 15;
+	if(a.HistN < 16) a.HistN++;
+
+	if(a.HistN >= 6)
+	{
+		double sx = 0.0, sy = 0.0;
+		for(int i = 0; i < a.HistN; i++)
+		{
+			const int idx = (a.HistHead - 1 - i + 16) & 15;
+			sx += a.HistX[idx];
+			sy += a.HistY[idx];
+		}
+		const double mx = sx / a.HistN, my = sy / a.HistN;
+		double sxx = 0.0, sxy = 0.0;
+		for(int i = 0; i < a.HistN; i++)
+		{
+			const int idx = (a.HistHead - 1 - i + 16) & 15;
+			const double dx = a.HistX[idx] - mx;
+			sxy += dx * (a.HistY[idx] - my);
+			sxx += dx * dx;
+		}
+		if(sxx > 1e-9)
+		{
+			// 回帰の傾きは階段の位相次第で ±0.08px/フレーム脈打つ。
+			// そのまま積分すると速度がゆっくり波打って見えるので弱く均す
+			const float slope = (float)(sxy / sxx);
+			a.Vel += (slope - a.Vel) * 0.3f;
+		}
+	}
+	a.Pos += a.Vel * (float)df;
+
+	// 目標は round 済みの整数なので、回帰速度だけだと推定誤差が積もる。
+	// 残差を弱く引いて「整数階段の平均位置」に留める (強く引くと階段が戻る)
+	const float err = t - a.Pos;
+	a.Pos += err * ((err > 2.0f || err < -2.0f) ? 0.5f : 0.10f);
+	return a.Pos;
+}
+//---------------------------------------------------------------------------
+bool tTJSNI_BaseLayer::DrawGPUSubtree(std::vector<TVPGPUQuad> &quads,
+	float ax, float ay, tjs_int accOpacity, const tTVPRect & clip)
+{
+	if(!IsSeen()) return true;
+
+	if(InTransition || GetCacheEnabled() || Type == ltFilter || Type == ltEffect)
+	{
+		// 原因を特定できるようにする (大図のみ・回数制限)
+		static int fall_dbg = 0;
+		if(fall_dbg < 40)
+		{
+			fall_dbg++;
+			PresentDiag::Emit("GFALL", PresentDiag::NowMs(),
+				"w=%d h=%d cache=%d type=%d trans=%d",
+				(int)Rect.get_width(), (int)Rect.get_height(),
+				GetCacheEnabled() ? 1 : 0, (int)Type, InTransition ? 1 : 0);
+		}
+		return false;
+	}
+	if(!TVPGPUBlendSupported(DisplayType))
+	{
+		static int fb1 = 0;
+		if(fb1 < 12 && Rect.get_width() >= 400)
+		{
+			fb1++;
+			PresentDiag::Emit("GFB1", PresentDiag::NowMs(), "w=%d type=%d", (int)Rect.get_width(), (int)DisplayType);
+		}
+		return false;
+	}
+	// CPU 合成は各階層で「子を親の矩形で切って」描く。ここで同じクリップを
+	// しないと、親からはみ出した画像がそのまま全画面に出る
+	// (ED の光沢画像がこれで右下に白い帯として出ていた)
+	tTVPRect self;
+	self.left = (tjs_int)(ax + 0.5f) + Rect.left;
+	self.top = (tjs_int)(ay + 0.5f) + Rect.top;
+	self.right = self.left + Rect.get_width();
+	self.bottom = self.top + Rect.get_height();
+	tTVPRect vis;
+	if(!TVPIntersectRect(&vis, self, clip) || vis.is_empty()) return true;
+
+	// グループ不透明度 (子を持つ層の opacity) の扱い。
+	// 子 quad の alpha に分配すると、子同士が重なる部分で二重に掛かり
+	// CPU 合成と一致しない (フェードが 1-t^2 になり黒まで落ちきらない)。
+	// 画面全体を覆う層は GPU のまま「子を不透明度 255 で描き、最終転送で
+	// 係数を一度だけ掛ける」で CPU と等価にする。部分的な小グループは
+	// 従来どおり CPU 合成へ回す (全画面を暗くしない・CPU と完全一致)
+	const tjs_int effOpacity = accOpacity * Opacity / 255;
+	const bool totalopaque = (DisplayType == ltOpaque && Opacity == 255);
+	const bool nonlinear = (DisplayType == ltAdditive || DisplayType == ltSubtractive ||
+		DisplayType == ltMultiplicative);
+	bool barrier = false;
+	if(!totalopaque && !nonlinear && Children.GetCount() != 0 && effOpacity != 255)
+	{
+		TVPGPUCompositeBeginGroup(Manager, Opacity, DisplayType);
+		barrier = true;
+	}
+	const tjs_int quadOpacity = barrier ? accOpacity : effOpacity;
+	const tjs_int childAccOp = barrier ? 255 : effOpacity;
+	const int quadGroup = TVPGPUCompositeCurrentGroup(Manager);
+
+	// 画面全体を亜像素平滑する。文字だけ整数位置に固定すると、TJS が
+	// round で渡してくる -2/-1/-3 のムラがそのまま残り、スクロールが
+	// 1px 単位で跳ねる (2x supersampling と併用してぼけは平均化される)
+	const int dispFrame = (int)TVPGPUCompositeFrame();
+	// 位置の連続化は TJS が enableSubpixelMotion() で明示した層だけ。
+	// 全層に掛けるとホバーのように飛んだり止まったりする UI が漂って見える
+	const bool smooth = SubpixelMotion && TVPGPUSmoothEnabled();
+	// 連続化した層は quad が小数位置に来るので、整数で切った可視範囲のまま
+	// クリップすると縁がフレーム毎に 1px 欠けて下の白地が覗く (白い線が閃く)。
+	// 連続化した層だけ外へ 1px 広げる (他の層は従来どおり厳密に切る)
+	if(smooth) vis.left--, vis.top--, vis.right++, vis.bottom++;
+	float mx = ax + (smooth ?
+		TVPGPUSmoothAxisStep(GPUSmoothX, Rect.left, dispFrame) : (float)Rect.left);
+	float my = ay + (smooth ?
+		TVPGPUSmoothAxisStep(GPUSmoothY, Rect.top, dispFrame) : (float)Rect.top);
+	// 画像スクロール (setImagePos) も整数ステップなので同様に連続化する。
+	// SrcRect のクリップは整数のまま、Dest 側に小数差分だけ足す
+	const float imgDx = smooth ?
+		TVPGPUSmoothAxisStep(GPUSmoothIX, ImageLeft, dispFrame) - (float)ImageLeft : 0.0f;
+	const float imgDy = smooth ?
+		TVPGPUSmoothAxisStep(GPUSmoothIY, ImageTop, dispFrame) - (float)ImageTop : 0.0f;
+
+	// hasImage=false のコンテナ層は CPU 合成同様描画しない。
+	// プレースホルダビットマップ (白) を描くと白い板が出るうえ、
+	// ビットマップポインタが毎フレーム変動してテクスチャを再転送してしまう
+	if(MainImage && GetHasImage())
+	{
+		// 32bpp 以外 (8bpp グレースケール等) はテクスチャ化できない
+		if(!MainImage->Is32BPP())
+		{
+			static int fb3 = 0;
+			if(fb3 < 12)
+			{
+				fb3++;
+				PresentDiag::Emit("GFB3", PresentDiag::NowMs(), "w=%d", (int)Rect.get_width());
+			}
+			return false;
+		}
+		tjs_int iw = (tjs_int)MainImage->GetWidth();
+		tjs_int ih = (tjs_int)MainImage->GetHeight();
+		// レイヤ矩形の外の画像部分は描かない (CPU 合成の cr クリップと同じ)
+		tjs_int sx0 = ImageLeft > 0 ? 0 : -ImageLeft;
+		tjs_int sy0 = ImageTop > 0 ? 0 : -ImageTop;
+		tjs_int sx1 = iw < Rect.get_width() - ImageLeft ? iw : Rect.get_width() - ImageLeft;
+		tjs_int sy1 = ih < Rect.get_height() - ImageTop ? ih : Rect.get_height() - ImageTop;
+		// 祖先の矩形で切られた分も落とす (可視範囲はレイヤ内座標)
+		const tjs_int lx0 = vis.left - self.left;
+		const tjs_int ly0 = vis.top - self.top;
+		const tjs_int lx1 = vis.right - self.left;
+		const tjs_int ly1 = vis.bottom - self.top;
+		if(ImageLeft + sx0 < lx0) sx0 = lx0 - ImageLeft;
+		if(ImageLeft + sx1 > lx1) sx1 = lx1 - ImageLeft;
+		if(ImageTop + sy0 < ly0) sy0 = ly0 - ImageTop;
+		if(ImageTop + sy1 > ly1) sy1 = ly1 - ImageTop;
+		if(sx0 < sx1 && sy0 < sy1)
+		{
+			TVPGPUQuad q;
+			q.Layer = this;
+			q.DestX = mx + (float)ImageLeft + (float)sx0 + imgDx;
+			q.DestY = my + (float)ImageTop + (float)sy0 + imgDy;
+			q.SrcX = sx0; q.SrcY = sy0;
+			q.SrcW = sx1 - sx0; q.SrcH = sy1 - sy0;
+			q.BlendType = DisplayType;
+			q.Opacity = quadOpacity;
+			q.Group = quadGroup;
+			q.IsFill = false;
+			q.FillColor = 0;
+			q.Bmp = MainImage;
+			q.BmpId = (void*)MainImage->GetBitmap();
+			q.BmpDirty = ImageModified;
+			q.ImgW = iw; q.ImgH = ih;
+			q.Subpixel = smooth;
+			quads.push_back(q);
+		}
+	}
+	// 画像なし層は CPU 同様 NeutralColor で塗るが、既定値は alpha=0
+	// (= 何も塗らない)。alpha まで見ないと画面全体を黒で覆ってしまう
+	else if(DisplayType == ltOpaque && Opacity != 0 && (NeutralColor >> 24) != 0)
+	{
+		// 親に切られている場合だけ可視範囲へ縮める (等倍なら mx/my のまま
+		// 亜像素平滑を効かせる)
+		const bool trimmed = vis.left != self.left || vis.top != self.top ||
+			vis.right != self.right || vis.bottom != self.bottom;
+		TVPGPUQuad q;
+		q.Layer = NULL;
+		q.DestX = trimmed ? (float)vis.left : mx;
+		q.DestY = trimmed ? (float)vis.top : my;
+		q.SrcX = 0; q.SrcY = 0;
+		q.SrcW = vis.get_width(); q.SrcH = vis.get_height();
+		q.BlendType = ltOpaque;
+		q.Opacity = quadOpacity;
+		q.Group = quadGroup;
+		q.IsFill = true;
+		q.FillColor = NeutralColor;
+		q.Bmp = NULL; q.BmpId = NULL; q.BmpDirty = false;
+		q.ImgW = 0; q.ImgH = 0;
+		q.Subpixel = false;
+		quads.push_back(q);
+	}
+
+	if(childAccOp == 0) { if(barrier) TVPGPUCompositeEndGroup(Manager); return true; }
+
+	TVP_LAYER_FOR_EACH_CHILD_BEGIN(child)
+	{
+		if(!child->DrawGPUSubtree(quads, mx, my, childAccOp, vis)) { if(barrier) TVPGPUCompositeEndGroup(Manager); return false; }
+	}
+	TVP_LAYER_FOR_EACH_CHILD_END
+
+	if(barrier) TVPGPUCompositeEndGroup(Manager);
+	return true;
+}
+//---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::CompleteForWindow(tTVPDrawable *drawable)
 {
 	BeforeCompletion();
 
 	if(Manager) Manager->NotifyUpdateRegionFixed();
+
+	// GPU 合成の試行。ツリー内に非対応機能があれば quads を捨てて
+	// このフレームは従来の CPU 合成へ丸ごとフォールバックする
+	if(Manager && Manager->GetLayerTreeOwner() &&
+		Manager->GetLayerTreeOwner()->GPUCompositeSupported())
+	{
+		std::vector<TVPGPUQuad> & quads = TVPGPUCompositeGetQuads(Manager);
+		quads.clear();
+		TVPGPUCompositeClearGroups(Manager);
+		// ルート (プライマリ) 自身も展開対象に含める。CPU 合成では
+		// プライマリレイヤの画像 (起動オプション画面の背景など) が
+		// そのまま描かれるが、GPU で子だけを展開すると背景が抜けて
+		// 黒くなる。ルートから再帰的に展開する
+		if(IsSeen() && Opacity != 0)
+		{
+			bool ok = this->DrawGPUSubtree(quads, 0.0f, 0.0f, 255, Rect);
+			if(!ok)
+			{
+				quads.clear();
+				// GPU 合成中は CPU 側の転送先テクスチャが更新されない。
+				// CPU 合成へ戻るフレームで全画面を作り直さないと、更新されて
+				// いない領域が前の画面のまま残り、トランジションが残像になる
+				if(Manager)
+				{
+					tTVPComplexRect & ur = Manager->GetUpdateRegionForCompletion();
+					ur.Clear();
+					ur.Or(Rect);
+				}
+			}
+		}
+	}
 
 	InCompletion = true;
 
@@ -6534,7 +6871,11 @@ void tTJSNI_BaseLayer::DoDivisibleTransition(tTVPBaseBitmap *dest,
 	data.DestTop = dy;
 
 	// process
+	double trans_t0 = PresentDiag::NowMs();
 	DivisibleTransHandler->Process(&data);
+	if(data.Width * data.Height >= 200000)
+		PresentDiag::Emit("TRANS", trans_t0, "ms=%.3f a=%d",
+			PresentDiag::NowMs() - trans_t0, data.Width * data.Height);
 
 	if(data.Dest == data.Src1)
 	{
@@ -6766,6 +7107,17 @@ TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/moveBehind)
 	return TJS_S_OK;
 }
 TJS_END_NATIVE_METHOD_DECL(/*func. name*/moveBehind)
+//----------------------------------------------------------------------
+// GPU 合成でこの層の位置を連続化する (整数ステップを亜像素の等速運動にする)。
+// 連続運動する層だけに使うこと。ホバーのように飛んだり止まったりする UI に
+// 使うと、描画位置が目標に追従しきれず漂って見える
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/enableSubpixelMotion)
+{
+	TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Layer);
+	_this->SetSubpixelMotion(true);
+	return TJS_S_OK;
+}
+TJS_END_NATIVE_METHOD_DECL(/*func. name*/enableSubpixelMotion)
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/bringToBack)
 {

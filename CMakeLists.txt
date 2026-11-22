@@ -290,6 +290,7 @@ set(C_CXX_SOURCES
 	"${SOURCE_ROOT}/visual/win32/BitmapInfomation.cpp"
 	"${SOURCE_ROOT}/visual/win32/DInputMgn.cpp"
 	"${SOURCE_ROOT}/visual/win32/DrawDevice.cpp"
+	"${SOURCE_ROOT}/visual/win32/GPUComposite.cpp"
 	"${SOURCE_ROOT}/visual/win32/GDIFontRasterizer.cpp"
 	"${SOURCE_ROOT}/visual/win32/GraphicsLoaderImpl.cpp"
 	"${SOURCE_ROOT}/visual/win32/LayerImpl.cpp"
