@@ -530,6 +530,7 @@ void TVPSaveAsJPG(void* formatdata, tTJSBinaryStream* dst, const tTVPBaseBitmap*
 	// open stream
 	tTJSBinaryStream *stream = dst;
 	struct jpeg_compress_struct cinfo;
+	bool cinfoDestroyed = false;
 
 	size_t buff_size = width*height*sizeof(tjs_uint32);
 	tjs_uint8* dest_buf = new tjs_uint8[buff_size];
@@ -596,9 +597,11 @@ void TVPSaveAsJPG(void* formatdata, tTJSBinaryStream* dst, const tTVPBaseBitmap*
 		}
 		jpeg_finish_compress(&cinfo);
 		jpeg_destroy_compress(&cinfo);
+		cinfoDestroyed = true;
 		stream->WriteBuffer( dest_buf, num_write_bytes );
 	} catch(...) {
-		jpeg_destroy_compress(&cinfo);
+		// 二重 destroy は解放済み領域を触って落ちる
+		if( !cinfoDestroyed ) jpeg_destroy_compress(&cinfo);
 		delete[] dest_buf;
 		throw;
 	}

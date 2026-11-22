@@ -147,6 +147,13 @@ target_include_directories(turbojpeg
 
 target_compile_definitions(turbojpeg 
 	PRIVATE "_CRT_SECURE_NO_WARNINGS"
+	# SIMD (MMX/SSE2) 実装は 16 バイト境界を前提に movdqa で読み書きする。
+	# libjpeg の行バッファは jmemmgr.c の ALIGN_SIZE で整列されるが、
+	# WITH_SIMD を定義していないと sizeof(double) (= 32 ビットでは 8) に
+	# なり、16 バイト整列されていない行に movdqa して #GP (アクセス違反)
+	# になる。JPG でスクリーンショットを保存すると落ちる原因はこれ。
+	# ALIGN_SIZE は jmemmgr.c 側で外部定義を許している。
+	PRIVATE "ALIGN_SIZE=16"
 )
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
